@@ -41,6 +41,8 @@ In podfox, every podcast is identified with its own `shortname`, which is restri
 ```
 ## Usage:
 
+### Import 
+
 To import a new feed use: 
 `podfox.py import <feed-url> [--shortname=<shortname>]`
 For example, to import the haskell cast feed:
@@ -51,5 +53,10 @@ To import the techsnap podcast, and to store the episodes to a specific folder, 
 
 `podfox import http://feeds.feedburner.com/techsnapmp3 --shortname=ts`
 
+
+### Update
+`podfox update` will update all feeds (This does not include downloading any new episodes)
+
+`podfox update <shortname>` will only update the feed associated with the given `shortname`
 
 
