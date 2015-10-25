@@ -39,16 +39,17 @@ In podfox, every podcast is identified with its own `shortname`, which is restri
             + episode289.ogg
             + episode288.ogg
 ```
-Usage:
-    podfox.py import <feed-url> [--shortname=<shortname>]
-    podfox.py update [--shortname=<shortname>]
-    podfox.py feeds
-    podfox.py episodes <shortname>
-    podfox.py download <shortname> [--how-many=<n>]
-    podfox.py sync-to <folder> [--delete --how-many=<n> <feeds>]
-Options:
-    -h --help     Show this help
-    -v --verbose  Show more output
-```
+## Usage:
+
+To import a new feed use: 
+`podfox.py import <feed-url> [--shortname=<shortname>]`
+For example, to import the haskell cast feed:
+
+`podfox import http://www.haskellcast.com/feed.xml`
+To import the techsnap podcast, and to store the episodes to a specific folder, use 
+
+
+`podfox import http://feeds.feedburner.com/techsnapmp3 --shortname=ts`
+
 
 
