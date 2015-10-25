@@ -8,7 +8,6 @@ Usage:
     podfox.py feeds
     podfox.py episodes <shortname>
     podfox.py download <shortname> [--how-many=<n>]
-    podfox.py sync-to <folder> [--delete --how-many=<n> <feeds>]
 
 Options:
     -h --help     Show this help
@@ -87,8 +86,8 @@ def import_feed(url, shortname=''):
         # numbers, and dashes:
         title = ''.join(ch for ch in title \
                 if ch.isalnum() or ch==' ')
-        title=title.replace(' ','-').lower()
-        folder = os.path.join(CONFIGURATION['podcast-directory'],title)
+        shortname=title.replace(' ','-').lower()
+        folder = os.path.join(CONFIGURATION['podcast-directory'],shortname)
         if os.path.exists(folder):
             print_err(
                     '{} already exists'.format(folder))
@@ -101,7 +100,7 @@ def import_feed(url, shortname=''):
     feed_conf['episodes'] = []
     #trawl all the entries, and find links to audio files.
     feed_conf['episodes'] = episodes_from_feed(d)
-    feed_conf['shortname'] = title
+    feed_conf['shortname'] = shortname
     feed_conf['title'] = d['feed']['title']
     feed_conf['url'] = url
     # write the configuration to a feed.json within the folder
@@ -137,6 +136,7 @@ def episodes_from_feed(d):
     episodes=[]
     for entry in d.entries:
         # convert publishing time to unix time, so that we can sort
+        # this should be unix time, barring any timezone shenanigans
         date = mktime(parsedate(entry.published))
         if hasattr(entry, 'links'):
             for link in entry.links:
