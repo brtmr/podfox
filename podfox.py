@@ -140,7 +140,9 @@ def episodes_from_feed(d):
         date = mktime(parsedate(entry.published))
         if hasattr(entry, 'links'):
             for link in entry.links:
-                if link.type == 'audio/mpeg' or link.type == 'audio/ogg':
+                if not hasattr(link,'type'):
+                    continue
+                if hasattr(link,'type') and link.type == 'audio/mpeg' or link.type == 'audio/ogg':
                     if hasattr(entry, 'title'):
                         episode_title = entry.title
                     else:
