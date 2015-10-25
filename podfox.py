@@ -272,6 +272,7 @@ if __name__=='__main__':
                 if maxnum == 0:
                     break
                 if not episode['downloaded']:
+                #TODO: multithreading
                     download_single_podcast(feed['shortname'], episode['url'])
                     episode['downloaded'] = True
                     maxnum -= 1
