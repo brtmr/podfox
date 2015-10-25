@@ -71,3 +71,20 @@ TechSNAP MP3                              |  ts
 The Haskell Cast                          |  the-haskell-cast    
 ```
 
+### Episodes
+
+`podfox feeds <shortname>` will produce a list of episodes available for this podcast, and wether they have been downloaded yet.
+
+```
+podfox episodes ts
+A Rip in NTP | TechSNAP 237               |  Not Downloaded      
+National Security Breaking Agency | Tech  |  Not Downloaded      
+Catching the Angler | TechSNAP 235        |  Not Downloaded      
+Key Flaw With GPL | TechSNAP 234          |  Not Downloaded      
+Dukes of Cyber Hazard | TechSNAP 233      |  Not Downloaded      
+Hardware Insecurity Module | TechSNAP 23  |  Not Downloaded      
+Leaky RSA Keys | TechSNAP 231             |  Not Downloaded      
+Trojan Family Ties | TechSNAP 230         |  Not Downloaded      
+Extortion Startups | TechSNAP 229         |  Not Downloaded      
+[...]
+```
