@@ -7,11 +7,10 @@ Usage:
     podfox.py update [--shortname=<shortname>]
     podfox.py feeds
     podfox.py episodes <shortname>
-    podfox.py download <shortname> [--how-many=<n>]
+    podfox.py download [<shortname> --how-many=<n>]
 
 Options:
     -h --help     Show this help
-    -v --verbose  Show more output
 """
 # (C) 2015 Bastian Reitemeier
 # mail(at)brtmr.de
@@ -156,8 +155,18 @@ def episodes_from_feed(d):
                         })
     return episodes
 
+def download_multiple(feed,maxnum):
+    for episode in feed['episodes']:
+        if maxnum == 0:
+            break
+        if not episode['downloaded']:
+        #TODO: multithreading
+            download_single(feed['shortname'], episode['url'])
+            episode['downloaded'] = True
+            maxnum -= 1
+    overwrite_config(feed)
 
-def download_single_podcast(folder,url):
+def download_single(folder,url):
     base = CONFIGURATION['podcast-directory']
     filename = url.split('/')[-1]
     filename = filename.split('?')[0]
@@ -170,7 +179,7 @@ def download_single_podcast(folder,url):
         c.setopt(c.FOLLOWLOCATION, True)
         c.perform()
         c.close()
-    print_green("{:s} downloaded".format(filename))
+    print("done.")
 
 
 def available_feeds():
@@ -268,18 +277,18 @@ if __name__=='__main__':
             exit(0)
     if arguments['download']:
         maxnum = int(arguments['--how-many']) if arguments['--how-many'] else CONFIGURATION['maxnum']
-        feed = find_feed(arguments['<shortname>'])
-        if feed:
-            for episode in feed['episodes']:
-                if maxnum == 0:
-                    break
-                if not episode['downloaded']:
-                #TODO: multithreading
-                    download_single_podcast(feed['shortname'], episode['url'])
-                    episode['downloaded'] = True
-                    maxnum -= 1
-            overwrite_config(feed)
-            exit(0)
+        #download episodes for a specific feed
+        if arguments['<shortname>']:
+            feed = find_feed(arguments['<shortname>'])
+            if feed:
+                download_multiple(feed,maxnum)
+                exit(0)
+            else:
+                print_err("feed {} not found".format(arguments['<shortname>']))
+                exit(-1)
+        #download episodes for all feeds.
         else:
-            print_err("feed {} not found".format(arguments['<shortname>']))
-            exit(-1)
+            for feed in available_feeds():
+                download_multiple(feed,maxnum)
+            exit(0)
+
