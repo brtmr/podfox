@@ -61,5 +61,13 @@ To import the techsnap podcast, and to store the episodes to a specific folder, 
 
 ### Feeds 
 
-`podfox feeds` will give an overview over the imported pocasts, and their `shortname`s
+`podfox feeds` will give an overview over the imported pocasts, and their `shortname`s.
+In the example: 
+```
+$ podfox feeds
+title                                     |  shortname           
+================================================================
+TechSNAP MP3                              |  ts                  
+The Haskell Cast                          |  the-haskell-cast    
+```
 
