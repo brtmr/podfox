@@ -59,4 +59,7 @@ To import the techsnap podcast, and to store the episodes to a specific folder, 
 
 `podfox update <shortname>` will only update the feed associated with the given `shortname`
 
+### Feeds 
+
+`podfox feeds` will give an overview over the imported pocasts, and their `shortname`s
 
