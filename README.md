@@ -25,4 +25,4 @@ Here is mine:
     "maxnum"            : 5
 }
 ```
-Make sure that your podcast-directory actually exitst.
+Make sure that your podcast-directory exists.
