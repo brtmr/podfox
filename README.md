@@ -15,3 +15,14 @@ Options:
     -h --help     Show this help
     -v --verbose  Show more output
 ```
+
+To use, put a file named `.podfox.json` in your home directory, this will be your main configuration file.
+Here is mine: 
+```
+{
+    "podcast-directory" : "/home/basti/podcasts",
+    "player"            : "vlc",
+    "maxnum"            : 5
+}
+```
+Make sure that your podcast-directory actually exitst.
