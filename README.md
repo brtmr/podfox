@@ -1,5 +1,5 @@
 # podfox - podcatching for the unix terminal.
-
+![](https://raw.githubusercontent.com/brtmr/podfox/master/logo/logo.png)
 a program for catching/ managing/ moving/ listening to podcasts for the linux terminal. 
 Work in Progress and unfinished. Use at your own risk.
 
