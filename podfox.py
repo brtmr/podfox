@@ -46,7 +46,16 @@ def print_err(err):
 
 
 def print_green(s):
-    print(Fore.GREEN + Style.BRIGHT + s + Fore.RESET + Style.RESET_ALL)
+    print(Fore.GREEN + s + Fore.RESET)
+
+
+def get_folder(shortname):
+    base = CONFIGURATION['podcast-directory']
+    return  os.path.join(base, shortname)
+
+
+def get_feed_file(shortname):
+    return  os.path.join(get_folder(shortname), 'feed.json')
 
 
 def import_feed(url, shortname=''):
@@ -55,13 +64,12 @@ def import_feed(url, shortname=''):
     that will contain all the necessary information about this feed, and
     all the episodes contained.
     '''
-    global CONFIGURATION
     # configuration for this feed, will be written to file.
     feed = {}
     # check if the folder exists.
     folder_created = False
     if shortname:
-        folder = os.path.join(CONFIGURATION['podcast-directory'], shortname)
+        folder = get_folder(shortname)
         if os.path.exists(folder):
             print_err(
                 '{} already exists'.format(folder))
@@ -86,7 +94,7 @@ def import_feed(url, shortname=''):
         title = ''.join(ch for ch in title
                 if ch.isalnum() or ch == ' ')
         shortname = title.replace(' ', '-').lower()
-        folder = os.path.join(CONFIGURATION['podcast-directory'], shortname)
+        folder = get_folder(shortname)
         if os.path.exists(folder):
             print_err(
                 '{} already exists'.format(folder))
@@ -103,7 +111,7 @@ def import_feed(url, shortname=''):
     feed['title'] = d['feed']['title']
     feed['url'] = url
     # write the configuration to a feed.json within the folder
-    feed_file = os.path.join(folder, 'feed.json')
+    feed_file = get_feed_file(shortname)
     with open(feed_file, 'x') as f:
         json.dump(feed, f, indent=4)
 
@@ -123,7 +131,8 @@ def update_feed(feed):
                 found = True
         if not found:
             feed['episodes'].append(episode)
-    feed['episodes'] = sorted(feed['episodes'], key=lambda k: k['published'])
+    feed['episodes'] = sorted(feed['episodes'], key=lambda k: k['published'],
+                              reverse=True)
     overwrite_config(feed)
 
 
@@ -133,8 +142,7 @@ def overwrite_config(feed):
     we want to update our local config to reflect that fact.
     '''
 
-    base = CONFIGURATION['podcast-directory']
-    filename = os.path.join(base, feed['shortname'], 'feed.json')
+    filename = get_feed_file(shortname)
     with open(filename, 'w') as f:
         json.dump(feed, f, indent=4)
 
@@ -194,19 +202,19 @@ def download_single(folder, url):
 
 
 def available_feeds():
-    base = CONFIGURATION['podcast-directory']
     '''
-    p0d will save each feed to its own folder. Each folder should
+    podfox will save each feed to its own folder. Each folder should
     contain a json configuration file describing which elements
     have been downloaded already, and how many will be kept.
     '''
+    base = CONFIGURATION['podcast-directory']
     paths = [p for p in os.listdir(base)
-             if os.path.isdir(os.path.join(base, p))
-             and os.path.isfile(os.path.join(base, p, 'feed.json'))]
+             if os.path.isdir(get_folder(p))
+             and os.path.isfile(get_feed_file(p))]
     #for every folder, check wether a configuration file exists.
     results = []
-    for path in paths:
-        with open(os.path.join(base, path, 'feed.json'), 'r') as f:
+    for shortname in paths:
+        with open(get_feed_file(shortname), 'r') as f:
             feed = json.load(f)
             results.append(feed)
     return results
