@@ -85,7 +85,7 @@ The Haskell Cast                          |  the-haskell-cast
 `podfox episodes <shortname>` will produce a list of episodes available for this podcast, and wether they have been downloaded yet.
 
 ```
-podfox episodes ts
+$ podfox episodes ts
 A Rip in NTP | TechSNAP 237               |  Not Downloaded      
 National Security Breaking Agency | Tech  |  Not Downloaded      
 Catching the Angler | TechSNAP 235        |  Not Downloaded      
