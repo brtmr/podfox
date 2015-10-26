@@ -1,10 +1,13 @@
 # podfox - podcatching for the terminal.
-![](https://raw.githubusercontent.com/brtmr/podfox/master/logo/logo.png)
+![](https://raw.githubusercontent.com/brtmr/podfox/dfd32f5a97a9429b9025e82284f6dbcc46028c60/logo/logo.png)
 
 
 A program for catching/ managing/ listening to podcasts for the terminal. 
 
 Work in Progress and unfinished. Use at your own risk.
+## Requirements
+requires feedparser, pycurl and colorama  
+Ubuntu: ```sudo apt-get install python3-colorama python3-feedparser python3-pycurl```
 
 ## Configuration
 
