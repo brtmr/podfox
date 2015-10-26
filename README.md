@@ -2,7 +2,7 @@
 ![podfox logo](https://raw.githubusercontent.com/brtmr/podfox/62a0a3e745185deee2ee92e1250034d65d863c21/logo/logo.png)
 
 
-A program for catching/ managing/ listening to podcasts for the terminal. 
+A program for managing & catching podcasts from the terminal. 
 
 Work in Progress and unfinished. Use at your own risk.
 ## Requirements
