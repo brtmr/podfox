@@ -29,17 +29,21 @@ import sys
 
 # RSS datetimes follow RFC 2822, same as email headers.
 # this is the chain of stackoverflow posts that led me to believe this is true.
-# http://stackoverflow.com/questions/11993258/what-is-the-correct-format-for-rss-feed-pubdate
-# http://stackoverflow.com/questions/885015/how-to-parse-a-rfc-2822-date-time-into-a-python-datetime
+# http://stackoverflow.com/questions/11993258/
+# what-is-the-correct-format-for-rss-feed-pubdate
+# http://stackoverflow.com/questions/885015/
+# how-to-parse-a-rfc-2822-date-time-into-a-python-datetime
+
 from email.utils import parsedate
 from time import mktime
 
 CONFIGURATION = {}
 
+
 def print_err(err):
-    print(Fore.RED + Style.BRIGHT + err + \
-            Fore.RESET + Back.RESET + Style.RESET_ALL \
-            , file=sys.stderr)
+    print(Fore.RED + Style.BRIGHT + err +
+          Fore.RESET + Back.RESET + Style.RESET_ALL, file=sys.stderr)
+
 
 def print_green(s):
     print(Fore.GREEN + Style.BRIGHT + s + Fore.RESET + Style.RESET_ALL)
@@ -57,10 +61,10 @@ def import_feed(url, shortname=''):
     # check if the folder exists.
     folder_created = False
     if shortname:
-        folder = os.path.join(CONFIGURATION['podcast-directory'],shortname)
+        folder = os.path.join(CONFIGURATION['podcast-directory'], shortname)
         if os.path.exists(folder):
             print_err(
-                    '{} already exists'.format(folder))
+                '{} already exists'.format(folder))
             exit(-1)
         else:
             os.makedirs(folder)
@@ -75,17 +79,17 @@ def import_feed(url, shortname=''):
             title = d['feed']['title']
         # still no succes, lets use the last part of the url
         else:
-             title = url.rsplit('/',1)[-1]
+            title = url.rsplit('/', 1)[-1]
         # we wanna avoid any filename crazyness,
         # so foldernames will be restricted to lowercase ascii letters,
         # numbers, and dashes:
-        title = ''.join(ch for ch in title \
-                if ch.isalnum() or ch==' ')
-        shortname=title.replace(' ','-').lower()
-        folder = os.path.join(CONFIGURATION['podcast-directory'],shortname)
+        title = ''.join(ch for ch in title
+                if ch.isalnum() or ch == ' ')
+        shortname = title.replace(' ', '-').lower()
+        folder = os.path.join(CONFIGURATION['podcast-directory'], shortname)
         if os.path.exists(folder):
             print_err(
-                    '{} already exists'.format(folder))
+                '{} already exists'.format(folder))
             exit(-1)
         else:
             os.makedirs(folder)
@@ -99,9 +103,10 @@ def import_feed(url, shortname=''):
     feed['title'] = d['feed']['title']
     feed['url'] = url
     # write the configuration to a feed.json within the folder
-    feed_file = os.path.join(folder,'feed.json')
-    with open(feed_file,'x') as f:
-        json.dump(feed,f,indent=4)
+    feed_file = os.path.join(folder, 'feed.json')
+    with open(feed_file, 'x') as f:
+        json.dump(feed, f, indent=4)
+
 
 def update_feed(feed):
     '''
@@ -115,10 +120,10 @@ def update_feed(feed):
         for old_episode in feed['episodes']:
             if episode['published'] == old_episode['published'] \
                     and episode['title'] == old_episode['title']:
-                found=True
+                found = True
         if not found:
             feed['episodes'].append(episode)
-    feed['episodes'] = sorted(feed['episodes'], key = lambda k : k['published'])
+    feed['episodes'] = sorted(feed['episodes'], key=lambda k: k['published'])
     overwrite_config(feed)
 
 
@@ -129,35 +134,38 @@ def overwrite_config(feed):
     '''
 
     base = CONFIGURATION['podcast-directory']
-    filename = os.path.join(base,feed['shortname'],'feed.json')
-    with open(filename,'w') as f:
-        json.dump(feed,f,indent=4)
+    filename = os.path.join(base, feed['shortname'], 'feed.json')
+    with open(filename, 'w') as f:
+        json.dump(feed, f, indent=4)
+
 
 def episodes_from_feed(d):
-    episodes=[]
+    episodes = []
     for entry in d.entries:
         # convert publishing time to unix time, so that we can sort
         # this should be unix time, barring any timezone shenanigans
         date = mktime(parsedate(entry.published))
         if hasattr(entry, 'links'):
             for link in entry.links:
-                if not hasattr(link,'type'):
+                if not hasattr(link, 'type'):
                     continue
-                if hasattr(link,'type') and link.type == 'audio/mpeg' or link.type == 'audio/ogg':
+                if hasattr(link, 'type') and (link.type == 'audio/mpeg' or
+                                              link.type == 'audio/ogg'):
                     if hasattr(entry, 'title'):
                         episode_title = entry.title
                     else:
                         episode_title = link.href
                     episodes.append({
-                        'title'      : episode_title,
-                        'url'        : link.href,
-                        'downloaded' : False,
-                        'listened'   : False,
-                        'published'  : date
+                        'title':      episode_title,
+                        'url':        link.href,
+                        'downloaded': False,
+                        'listened':   False,
+                        'published':  date
                         })
     return episodes
 
-def download_multiple(feed,maxnum):
+
+def download_multiple(feed, maxnum):
     for episode in feed['episodes']:
         if maxnum == 0:
             break
@@ -168,7 +176,8 @@ def download_multiple(feed,maxnum):
             maxnum -= 1
     overwrite_config(feed)
 
-def download_single(folder,url):
+
+def download_single(folder, url):
     base = CONFIGURATION['podcast-directory']
     filename = url.split('/')[-1]
     filename = filename.split('?')[0]
@@ -191,16 +200,17 @@ def available_feeds():
     contain a json configuration file describing which elements
     have been downloaded already, and how many will be kept.
     '''
-    paths = [p for p in os.listdir(base) \
-             if  os.path.isdir(os.path.join(base,p)) \
-             and os.path.isfile(os.path.join(base,p,'feed.json'))]
+    paths = [p for p in os.listdir(base)
+             if os.path.isdir(os.path.join(base, p))
+             and os.path.isfile(os.path.join(base, p, 'feed.json'))]
     #for every folder, check wether a configuration file exists.
     results = []
     for path in paths:
-        with open(os.path.join(base,path,'feed.json'),'r') as f:
+        with open(os.path.join(base, path, 'feed.json'), 'r') as f:
             feed = json.load(f)
             results.append(feed)
     return results
+
 
 def find_feed(shortname):
     '''
@@ -215,9 +225,10 @@ def find_feed(shortname):
             return feed
     return None
 
+
 def pretty_print_feeds(feeds):
-    format_str = Fore.GREEN + '{0:40}  |' + \
-        Fore.BLUE  + '  {1:20}' + Fore.RESET + Back.RESET
+    format_str = Fore.GREEN + '{0:40}  |'
+    format_str += Fore.BLUE + '  {1:20}' + Fore.RESET + Back.RESET
     print(format_str.format('title', 'shortname'))
     print('='*64)
     for feed in feeds:
@@ -225,14 +236,14 @@ def pretty_print_feeds(feeds):
 
 
 def pretty_print_episodes(feed):
-    format_str = Fore.GREEN + '{0:40}  |' + \
-        Fore.BLUE  + '  {1:20}' + Fore.RESET + Back.RESET
+    format_str = Fore.GREEN + '{0:40}  |'
+    format_str += Fore.BLUE + '  {1:20}' + Fore.RESET + Back.RESET
     for e in feed['episodes']:
-        print(format_str.format(e['title'][:40], 'Downloaded' if e['downloaded']
-            else 'Not Downloaded'))
+        status = 'Downloaded' if e['downloaded'] else 'Not Downloaded'
+        print(format_str.format(e['title'][:40], status))
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     colorama.init()
     arguments = docopt(__doc__, version='p0d 0.01')
     # before we do anything with the commands,
@@ -250,7 +261,7 @@ if __name__=='__main__':
             import_feed(arguments['<feed-url>'])
         else:
             import_feed(arguments['<feed-url>'],
-                    shortname=arguments['<shortname>'])
+                        shortname=arguments['<shortname>'])
         exit(0)
     if arguments['feeds']:
         pretty_print_feeds(available_feeds())
@@ -279,12 +290,15 @@ if __name__=='__main__':
                 update_feed(feed)
             exit(0)
     if arguments['download']:
-        maxnum = int(arguments['--how-many']) if arguments['--how-many'] else CONFIGURATION['maxnum']
+        if arguments['--how-many']:
+            maxnum = int(arguments['--how-many'])
+        else:
+            maxnum = CONFIGURATION['maxnum']
         #download episodes for a specific feed
         if arguments['<shortname>']:
             feed = find_feed(arguments['<shortname>'])
             if feed:
-                download_multiple(feed,maxnum)
+                download_multiple(feed, maxnum)
                 exit(0)
             else:
                 print_err("feed {} not found".format(arguments['<shortname>']))
@@ -292,6 +306,5 @@ if __name__=='__main__':
         #download episodes for all feeds.
         else:
             for feed in available_feeds():
-                download_multiple(feed,maxnum)
+                download_multiple(feed,  maxnum)
             exit(0)
-
