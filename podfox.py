@@ -3,7 +3,7 @@
 
 
 Usage:
-    podfox.py import <feed-url> [--shortname=<shortname>]
+    podfox.py import <feed-url> [<shortname>]
     podfox.py update [<shortname>]
     podfox.py feeds
     podfox.py episodes <shortname>
@@ -250,10 +250,11 @@ if __name__=='__main__':
             exit(-1)
     #handle the commands
     if arguments['import']:
-        if arguments['--shortname'] is None:
+        if arguments['<shortname>'] is None:
             import_feed(arguments['<feed-url>'])
         else:
-            import_feed(arguments['<feed-url>'], shortname=arguments['--shortname'])
+            import_feed(arguments['<feed-url>'],
+                    shortname=arguments['<shortname>'])
         exit(0)
     if arguments['feeds']:
         pretty_print_feeds(available_feeds())
