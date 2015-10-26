@@ -57,7 +57,7 @@ def import_feed(url, shortname=''):
     '''
     global CONFIGURATION
     # configuration for this feed, will be written to file.
-    feed_conf = {}
+    feed = {}
     # check if the folder exists.
     folder_created = False
     if shortname:
@@ -96,16 +96,16 @@ def import_feed(url, shortname=''):
             folder_created = True
     #we have succesfully generated a folder that we can store the files
     #in
-    feed_conf['episodes'] = []
+    feed['episodes'] = []
     #trawl all the entries, and find links to audio files.
-    feed_conf['episodes'] = episodes_from_feed(d)
-    feed_conf['shortname'] = shortname
-    feed_conf['title'] = d['feed']['title']
-    feed_conf['url'] = url
+    feed['episodes'] = episodes_from_feed(d)
+    feed['shortname'] = shortname
+    feed['title'] = d['feed']['title']
+    feed['url'] = url
     # write the configuration to a feed.json within the folder
-    feed_conf_file = os.path.join(folder,'feed.json')
-    with open(feed_conf_file,'x') as f:
-        json.dump(feed_conf,f)
+    feed_file = os.path.join(folder,'feed.json')
+    with open(feed_file,'x') as f:
+        json.dump(feed,f)
 
 def update_feed(feed):
     '''
