@@ -34,10 +34,7 @@ import sys
 from email.utils import parsedate
 from time import mktime
 
-PODCAST_DIRECTORY = ''
 CONFIGURATION = {}
-DEFAULT_LIMIT = 5
-
 
 def print_err(err):
     print(Fore.RED + Style.BRIGHT + err + \
