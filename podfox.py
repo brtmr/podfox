@@ -51,11 +51,11 @@ def print_green(s):
 
 def get_folder(shortname):
     base = CONFIGURATION['podcast-directory']
-    return  os.path.join(base, shortname)
+    return os.path.join(base, shortname)
 
 
 def get_feed_file(shortname):
-    return  os.path.join(get_folder(shortname), 'feed.json')
+    return os.path.join(get_folder(shortname), 'feed.json')
 
 
 def import_feed(url, shortname=''):
