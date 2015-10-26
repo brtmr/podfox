@@ -141,7 +141,6 @@ def overwrite_config(feed):
     after updating the feed, or downloading new items,
     we want to update our local config to reflect that fact.
     '''
-
     filename = get_feed_file(shortname)
     with open(filename, 'w') as f:
         json.dump(feed, f, indent=4)
@@ -217,7 +216,7 @@ def available_feeds():
         with open(get_feed_file(shortname), 'r') as f:
             feed = json.load(f)
             results.append(feed)
-    return results
+    return sorted(results, key=lambda k: k['title'])
 
 
 def find_feed(shortname):
