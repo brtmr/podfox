@@ -4,7 +4,7 @@
 
 Usage:
     podfox.py import <feed-url> [--shortname=<shortname>]
-    podfox.py update [--shortname=<shortname>]
+    podfox.py update [<shortname>]
     podfox.py feeds
     podfox.py episodes <shortname>
     podfox.py download [<shortname> --how-many=<n>]
@@ -115,9 +115,14 @@ def update_feed(feed):
     d = feedparser.parse(feed['url'])
     #only append new episodes!
     for episode in episodes_from_feed(d):
-        if episode in feed['episodes']:
-            continue
-        else: feed['episodes'].append(episode)
+        found = False
+        for old_episode in feed['episodes']:
+            if episode['published'] == old_episode['published'] \
+                    and episode['title'] == old_episode['title']:
+                found=True
+        if not found:
+            feed['episodes'].append(episode)
+    feed['episodes'] = sorted(feed['episodes'], key = lambda k : k['published'])
     overwrite_config(feed)
 
 
@@ -126,6 +131,7 @@ def overwrite_config(feed):
     after updating the feed, or downloading new items,
     we want to update our local config to reflect that fact.
     '''
+
     base = CONFIGURATION['podcast-directory']
     filename = os.path.join(base,feed['shortname'],'feed.json')
     with open(filename,'w') as f:
