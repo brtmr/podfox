@@ -43,7 +43,13 @@ In podfox, every podcast is identified with its own `shortname`, which is restri
             + episode288.ogg
 ```
 ## Usage:
-
+```
+    podfox.py import <feed-url> [<shortname>]
+    podfox.py update [<shortname>]
+    podfox.py feeds
+    podfox.py episodes <shortname>
+    podfox.py download [<shortname> --how-many=<n>]
+```
 ### Import 
 
 To import a new feed use: 
