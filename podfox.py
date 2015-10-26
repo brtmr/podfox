@@ -34,7 +34,6 @@ import sys
 from email.utils import parsedate
 from time import mktime
 
-
 PODCAST_DIRECTORY = ''
 CONFIGURATION = {}
 DEFAULT_LIMIT = 5
@@ -105,7 +104,7 @@ def import_feed(url, shortname=''):
     # write the configuration to a feed.json within the folder
     feed_file = os.path.join(folder,'feed.json')
     with open(feed_file,'x') as f:
-        json.dump(feed,f)
+        json.dump(feed,f,indent=4)
 
 def update_feed(feed):
     '''
@@ -135,7 +134,7 @@ def overwrite_config(feed):
     base = CONFIGURATION['podcast-directory']
     filename = os.path.join(base,feed['shortname'],'feed.json')
     with open(filename,'w') as f:
-        json.dump(feed,f)
+        json.dump(feed,f,indent=4)
 
 def episodes_from_feed(d):
     episodes=[]
