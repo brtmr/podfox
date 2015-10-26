@@ -66,8 +66,9 @@ def import_feed(url, shortname=''):
     '''
     # configuration for this feed, will be written to file.
     feed = {}
-    # check if the folder exists.
-    folder_created = False
+    #get the feed.
+    d = feedparser.parse(url)
+
     if shortname:
         folder = get_folder(shortname)
         if os.path.exists(folder):
@@ -76,12 +77,9 @@ def import_feed(url, shortname=''):
             exit(-1)
         else:
             os.makedirs(folder)
-            folder_created = True
-    #get the feed.
-    d = feedparser.parse(url)
     #if the user did not specify a folder name,
     #we have to create one from the title
-    if not folder_created:
+    if not shortname:
         # the rss advertises a title, lets use that.
         if hasattr(d['feed'], 'title'):
             title = d['feed']['title']
@@ -94,6 +92,10 @@ def import_feed(url, shortname=''):
         title = ''.join(ch for ch in title
                 if ch.isalnum() or ch == ' ')
         shortname = title.replace(' ', '-').lower()
+        if not shortname:
+            print_err('could not auto-deduce shortname.')
+            print_err('please provide one explicitly.')
+            exit(-1)
         folder = get_folder(shortname)
         if os.path.exists(folder):
             print_err(
@@ -101,10 +103,8 @@ def import_feed(url, shortname=''):
             exit(-1)
         else:
             os.makedirs(folder)
-            folder_created = True
     #we have succesfully generated a folder that we can store the files
     #in
-    feed['episodes'] = []
     #trawl all the entries, and find links to audio files.
     feed['episodes'] = episodes_from_feed(d)
     feed['shortname'] = shortname
@@ -141,7 +141,7 @@ def overwrite_config(feed):
     after updating the feed, or downloading new items,
     we want to update our local config to reflect that fact.
     '''
-    filename = get_feed_file(shortname)
+    filename = get_feed_file(feed['shortname'])
     with open(filename, 'w') as f:
         json.dump(feed, f, indent=4)
 
