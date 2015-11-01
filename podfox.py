@@ -8,6 +8,7 @@ Usage:
     podfox.py feeds
     podfox.py episodes <shortname>
     podfox.py download [<shortname> --how-many=<n>]
+    podfox.py rename <shortname> <newname>
 
 Options:
     -h --help     Show this help
@@ -235,10 +236,20 @@ def find_feed(shortname):
             return feed
     return None
 
+def rename(shortname, newname):
+    folder = get_folder(shortname)
+    new_folder = get_folder(newname)
+    if not os.path.isdir(folder):
+        print_err('folder {0} not found'.format(folder))
+        exit(-1)
+    os.rename(folder, new_folder)
+    feed = find_feed(shortname)
+    feed['shortname'] = newname
+    overwrite_config(feed)
 
 def pretty_print_feeds(feeds):
-    format_str = Fore.GREEN + '{0:40}  |'
-    format_str += Fore.BLUE + '  {1:20}' + Fore.RESET + Back.RESET
+    format_str = Fore.GREEN + '{0:40.40}  |'
+    format_str += Fore.BLUE + '  {1:40}' + Fore.RESET + Back.RESET
     print(format_str.format('title', 'shortname'))
     print('='*64)
     for feed in feeds:
@@ -318,3 +329,5 @@ if __name__ == '__main__':
             for feed in available_feeds():
                 download_multiple(feed,  maxnum)
             exit(0)
+    if arguments['rename']:
+        rename(arguments['<shortname>'], arguments['<newname>'])
