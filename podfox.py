@@ -11,7 +11,7 @@ Usage:
     podfox.py rename <shortname> <newname> [-c=<path>]
 
 Options:
-    -c --config=<path>    Specify an alternate config file [default: ~/.podfox.json]
+    -c --config=<path>    Specify an alternate config file [default: ~/.podfox.json ]
     -h --help     Show this help
 """
 # (C) 2015 Bastian Reitemeier
@@ -21,7 +21,6 @@ from colorama import Fore, Back, Style
 from docopt import docopt
 from os.path import expanduser
 from sys import exit
-from threading import Thread, active_count
 import colorama
 import feedparser
 import json
@@ -183,41 +182,16 @@ def episodes_from_feed(d):
 
 
 def download_multiple(feed, maxnum):
-    if "maxthreads" in CONFIGURATION.keys():
-        maxthreads = CONFIGURATION['maxthreads']
-    else:
-        maxthreads = maxnum
-
     for episode in feed['episodes']:
         if maxnum == 0:
             break
         if not episode['downloaded']:
         #TODO: multithreading
-            downloadthread = download_thread(feed['shortname'], episode['url'])
-            downloadthread.start()
-            #download_single(feed['shortname'], episode['url'])
+            download_single(feed['shortname'], episode['url'])
             episode['downloaded'] = True
             maxnum -= 1
-
-        while active_count() > maxthreads:
-            try:
-                downloadthread.join(60)
-            except RuntimeError:
-                pass
-
     overwrite_config(feed)
 
-
-class download_thread(Thread):
-    def __init__(self, folder, url):
-        Thread.__init__(self)
-
-        self.folder = folder
-        self.url = url
-        self.daemon = True
-
-    def run(self):
-        download_single(self.folder, self.url)
 
 def download_single(folder, url):
     base = CONFIGURATION['podcast-directory']
@@ -232,7 +206,7 @@ def download_single(folder, url):
         c.setopt(c.FOLLOWLOCATION, True)
         c.perform()
         c.close()
-    print("{:s} done.".format(filename))
+    print("done.")
 
 
 def available_feeds():
@@ -300,6 +274,7 @@ if __name__ == '__main__':
     arguments = docopt(__doc__, version='p0d 0.01')
     # before we do anything with the commands,
     # find the configuration file
+
     configfile = expanduser(arguments["--config"])
 
     with open(configfile) as conf_file:
