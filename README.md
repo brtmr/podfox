@@ -16,8 +16,7 @@ Here is mine:
 ```
 {
     "podcast-directory" : "/home/basti/podcasts",
-    "maxnum"            : 5,
-    "maxthreads"        : 2
+    "maxnum"            : 5
 }
 ```
 `podcast-directory` is your main directory to store podcast data. This directory should be empty before you
