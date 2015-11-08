@@ -11,7 +11,7 @@ Usage:
     podfox.py rename <shortname> <newname> [-c=<path>]
 
 Options:
-    -c --config=<path>    Specify an alternate config file [default: ~/.podfox.json ]
+    -c --config=<path>    Specify an alternate config file [default: ~/.podfox.json]
     -h --help     Show this help
 """
 # (C) 2015 Bastian Reitemeier
