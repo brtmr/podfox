@@ -7,7 +7,7 @@ A program for managing & catching podcasts from the terminal.
 Work in Progress and unfinished. Use at your own risk.
 ## Requirements
 requires feedparser, pycurl and colorama  
-Ubuntu: ```sudo apt-get install python3-colorama python3-feedparser python3-pycurl```
+Ubuntu: ```sudo apt-get install python3-colorama python3-feedparser python3-pycurl python3-docopt```
 
 ## Configuration
 
