@@ -11,7 +11,7 @@ Usage:
     podfox.py rename <shortname> <newname> [-c=<path>]
 
 Options:
-    -c --config=<path>    Specify an alternate config file [default: ~/.podfox.json ]
+    -c --config=<path>    Specify an alternate config file [default: ~/.podfox.json]
     -h --help     Show this help
 """
 # (C) 2015 Bastian Reitemeier
@@ -21,6 +21,7 @@ from colorama import Fore, Back, Style
 from docopt import docopt
 from os.path import expanduser
 from sys import exit
+from threading import Thread
 import colorama
 import feedparser
 import json
@@ -187,11 +188,23 @@ def download_multiple(feed, maxnum):
             break
         if not episode['downloaded']:
         #TODO: multithreading
-            download_single(feed['shortname'], episode['url'])
+            downloadthread = download_thread(feed['shortname'], episode['url'])
+            downloadthread.start()
+            #download_single(feed['shortname'], episode['url'])
             episode['downloaded'] = True
             maxnum -= 1
     overwrite_config(feed)
 
+
+class download_thread(Thread):
+    def __init__(self, folder, url):
+        Thread.__init__(self)
+
+        self.folder = folder
+        self.url = url
+
+    def run(self):
+        download_single(self.folder, self.url)
 
 def download_single(folder, url):
     base = CONFIGURATION['podcast-directory']
@@ -206,7 +219,7 @@ def download_single(folder, url):
         c.setopt(c.FOLLOWLOCATION, True)
         c.perform()
         c.close()
-    print("done.")
+    print("{:s} done.".format(filename))
 
 
 def available_feeds():
