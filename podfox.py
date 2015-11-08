@@ -3,14 +3,15 @@
 
 
 Usage:
-    podfox.py import <feed-url> [<shortname>]
-    podfox.py update [<shortname>]
-    podfox.py feeds
-    podfox.py episodes <shortname>
-    podfox.py download [<shortname> --how-many=<n>]
-    podfox.py rename <shortname> <newname>
+    podfox.py import <feed-url> [<shortname>] [-c=<path>]
+    podfox.py update [<shortname>] [-c=<path>]
+    podfox.py feeds [-c=<path>]
+    podfox.py episodes <shortname> [-c=<path>]
+    podfox.py download [<shortname> --how-many=<n>] [-c=<path>]
+    podfox.py rename <shortname> <newname> [-c=<path>]
 
 Options:
+    -c --config=<path>    Specify an alternate config file [default: ~/.podfox.json ]
     -h --help     Show this help
 """
 # (C) 2015 Bastian Reitemeier
@@ -273,8 +274,9 @@ if __name__ == '__main__':
     arguments = docopt(__doc__, version='p0d 0.01')
     # before we do anything with the commands,
     # find the configuration file
-    home_directory = expanduser("~")
-    with open(home_directory + '/.podfox.json') as conf_file:
+    configfile = expanduser(arguments["--config"])
+
+    with open(configfile) as conf_file:
         try:
             CONFIGURATION = json.load(conf_file)
         except ValueError:
