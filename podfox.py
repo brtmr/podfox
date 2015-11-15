@@ -40,6 +40,11 @@ from time import mktime
 
 CONFIGURATION = {}
 
+mimetypes = [
+    'audio/ogg',
+    'audio/mpeg',
+    'video/mp4'
+]
 
 def print_err(err):
     print(Fore.RED + Style.BRIGHT + err +
@@ -166,8 +171,7 @@ def episodes_from_feed(d):
             for link in entry.links:
                 if not hasattr(link, 'type'):
                     continue
-                if hasattr(link, 'type') and (link.type == 'audio/mpeg' or
-                                              link.type == 'audio/ogg'):
+                if hasattr(link, 'type') and (link.type in mimetypes):
                     if hasattr(entry, 'title'):
                         episode_title = entry.title
                     else:
