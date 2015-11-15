@@ -59,6 +59,12 @@ def get_feed_file(shortname):
     return os.path.join(get_folder(shortname), 'feed.json')
 
 
+def sort_feed(feed):
+    feed['episodes'] = sorted(feed['episodes'], key=lambda k: k['published'],
+                              reverse=True)
+    return feed
+
+
 def import_feed(url, shortname=''):
     '''
     creates a folder for the new feed, and then inserts a new feed.json
@@ -113,6 +119,7 @@ def import_feed(url, shortname=''):
     feed['url'] = url
     # write the configuration to a feed.json within the folder
     feed_file = get_feed_file(shortname)
+    feed = sort_feed(feed)
     with open(feed_file, 'x') as f:
         json.dump(feed, f, indent=4)
     print('imported ' +
@@ -135,8 +142,7 @@ def update_feed(feed):
                 found = True
         if not found:
             feed['episodes'].append(episode)
-    feed['episodes'] = sorted(feed['episodes'], key=lambda k: k['published'],
-                              reverse=True)
+    feed = sort_feed(feed)
     overwrite_config(feed)
 
 
@@ -181,7 +187,6 @@ def download_multiple(feed, maxnum):
         if maxnum == 0:
             break
         if not episode['downloaded']:
-        #TODO: multithreading
             download_single(feed['shortname'], episode['url'])
             episode['downloaded'] = True
             maxnum -= 1
