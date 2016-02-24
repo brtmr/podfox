@@ -25,7 +25,7 @@ import feedparser
 import json
 import os
 import os.path
-import pycurl
+import requests
 import sys
 
 # RSS datetimes follow RFC 2822, same as email headers.
@@ -147,6 +147,7 @@ def update_feed(feed):
                 found = True
         if not found:
             feed['episodes'].append(episode)
+            print('new episode.')
     feed = sort_feed(feed)
     overwrite_config(feed)
 
@@ -198,18 +199,15 @@ def download_multiple(feed, maxnum):
 
 
 def download_single(folder, url):
+    print(url)
     base = CONFIGURATION['podcast-directory']
     filename = url.split('/')[-1]
     filename = filename.split('?')[0]
     print_green("{:s} downloading".format(filename))
+    r = requests.get(url, stream=True)
     with open(os.path.join(base, folder, filename), 'wb') as f:
-        c = pycurl.Curl()
-        c.setopt(c.URL, url)
-        c.setopt(c.WRITEDATA, f)
-        # Follow redirect. Podcast cdns love redirecting you around.
-        c.setopt(c.FOLLOWLOCATION, True)
-        c.perform()
-        c.close()
+        for chunk in r.iter_content(chunk_size=1024):
+            f.write(chunk)
     print("done.")
 
 
@@ -268,7 +266,7 @@ def pretty_print_feeds(feeds):
 def pretty_print_episodes(feed):
     format_str = Fore.GREEN + '{0:40}  |'
     format_str += Fore.BLUE + '  {1:20}' + Fore.RESET + Back.RESET
-    for e in feed['episodes']:
+    for e in feed['episodes'][:10]:
         status = 'Downloaded' if e['downloaded'] else 'Not Downloaded'
         print(format_str.format(e['title'][:40], status))
 
