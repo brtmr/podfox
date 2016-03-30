@@ -206,7 +206,7 @@ def download_single(folder, url):
     print_green("{:s} downloading".format(filename))
     r = requests.get(url, stream=True)
     with open(os.path.join(base, folder, filename), 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024):
+        for chunk in r.iter_content(chunk_size=1024**2):
             f.write(chunk)
     print("done.")
 
@@ -255,18 +255,23 @@ def rename(shortname, newname):
     overwrite_config(feed)
 
 def pretty_print_feeds(feeds):
-    format_str = Fore.GREEN + '{0:40.40}  |'
+    format_str = Fore.GREEN + '{0:45.45} |'
     format_str += Fore.BLUE + '  {1:40}' + Fore.RESET + Back.RESET
     print(format_str.format('title', 'shortname'))
-    print('='*64)
+    print('='*80)
     for feed in feeds:
-        print(format_str.format(feed['title'], feed['shortname']))
+        format_str = Fore.GREEN + '{0:40.40} {1:3d}{2:1.1} |'
+        format_str += Fore.BLUE + '  {3:40}' + Fore.RESET + Back.RESET
+        feed = sort_feed(feed)
+        amount = len([ep for ep in feed['episodes'] if ep['downloaded']])
+        dl = '' if feed['episodes'][0]['downloaded'] else '*'
+        print(format_str.format(feed['title'], amount, dl, feed['shortname']))
 
 
 def pretty_print_episodes(feed):
     format_str = Fore.GREEN + '{0:40}  |'
     format_str += Fore.BLUE + '  {1:20}' + Fore.RESET + Back.RESET
-    for e in feed['episodes'][:10]:
+    for e in feed['episodes'][:20]:
         status = 'Downloaded' if e['downloaded'] else 'Not Downloaded'
         print(format_str.format(e['title'][:40], status))
 
