@@ -7,8 +7,10 @@ A program for managing & catching podcasts from the terminal.
 Work in Progress and unfinished. Use at your own risk.
 ## Requirements
 requires feedparser, requests and colorama
+
 install automatically via pip:
-Ubuntu: ```pip install podfox```
+
+```pip install podfox```
 
 ## Configuration
 
