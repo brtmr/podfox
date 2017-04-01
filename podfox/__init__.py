@@ -205,7 +205,7 @@ def download_single(folder, url):
     filename = url.split('/')[-1]
     filename = filename.split('?')[0]
     print_green("{:s} downloading".format(filename))
-    r = requests.get(url, stream=True)
+    r = requests.get(url.strip(), stream=True)
     with open(os.path.join(base, folder, filename), 'wb') as f:
         for chunk in r.iter_content(chunk_size=1024**2):
             f.write(chunk)
