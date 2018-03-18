@@ -28,6 +28,7 @@ import os
 import os.path
 import requests
 import sys
+import re
 
 # RSS datetimes follow RFC 2822, same as email headers.
 # this is the chain of stackoverflow posts that led me to believe this is true.
@@ -202,10 +203,13 @@ def download_multiple(feed, maxnum):
 def download_single(folder, url):
     print(url)
     base = CONFIGURATION['podcast-directory']
-    filename = url.split('/')[-1]
-    filename = filename.split('?')[0]
-    print_green("{:s} downloading".format(filename))
     r = requests.get(url.strip(), stream=True)
+    try:
+        filename=re.findall('filename="([^"]+)',r.headers['content-disposition'])[0]
+    except:
+        filename = url.split('/')[-1]
+        filename = filename.split('?')[0]
+    print_green("{:s} downloading".format(filename))
     with open(os.path.join(base, folder, filename), 'wb') as f:
         for chunk in r.iter_content(chunk_size=1024**2):
             f.write(chunk)
