@@ -7,7 +7,7 @@ Usage:
     podfox.py update [<shortname>] [-c=<path>]
     podfox.py feeds [-c=<path>]
     podfox.py episodes <shortname> [-c=<path>]
-    podfox.py download [<shortname> --how-many=<n>] [-c=<path>]
+    podfox.py download [<shortname> --how-many=<n>] [--rename-files] [-c=<path>]
     podfox.py rename <shortname> <newname> [-c=<path>]
 
 Options:
@@ -20,6 +20,7 @@ Options:
 from colorama import Fore, Back, Style
 from docopt import docopt
 from os.path import expanduser
+from urllib.parse import urlparse
 from sys import exit
 import colorama
 import feedparser
@@ -38,7 +39,7 @@ import re
 # how-to-parse-a-rfc-2822-date-time-into-a-python-datetime
 
 from email.utils import parsedate
-from time import mktime
+from time import mktime, localtime, strftime
 
 CONFIGURATION = {}
 
@@ -189,26 +190,37 @@ def episodes_from_feed(d):
     return episodes
 
 
-def download_multiple(feed, maxnum):
+def download_multiple(feed, maxnum, rename):
     for episode in feed['episodes']:
         if maxnum == 0:
             break
         if not episode['downloaded']:
-            download_single(feed['shortname'], episode['url'])
+            if rename:
+                title = episode['title']
+                for c in '<>\"|*%?\\/': 
+                    title = title.replace(c, "")
+                title = title.replace(" ", "_").replace("’", "'").replace("—", "-").replace(":", ".")
+                extension = os.path.splitext(urlparse(episode['url'])[2])[1]
+                filename = "{}_{}{}".format(strftime('%Y-%m-%d', localtime(episode['published'])),
+                                            title, extension)
+                download_single(feed['shortname'], episode['url'], filename)
+            else:
+                download_single(feed['shortname'], episode['url'])
             episode['downloaded'] = True
             maxnum -= 1
     overwrite_config(feed)
 
 
-def download_single(folder, url):
+def download_single(folder, url, filename=""):
     print(url)
     base = CONFIGURATION['podcast-directory']
     r = requests.get(url.strip(), stream=True)
-    try:
-        filename=re.findall('filename="([^"]+)',r.headers['content-disposition'])[0]
-    except:
-        filename = url.split('/')[-1]
-        filename = filename.split('?')[0]
+    if not filename:
+        try:
+            filename=re.findall('filename="([^"]+)',r.headers['content-disposition'])[0]
+        except:
+            filename = url.split('/')[-1]
+            filename = filename.split('?')[0]
     print_green("{:s} downloading".format(filename))
     with open(os.path.join(base, folder, filename), 'wb') as f:
         for chunk in r.iter_content(chunk_size=1024**2):
@@ -335,11 +347,12 @@ def main():
             maxnum = int(arguments['--how-many'])
         else:
             maxnum = CONFIGURATION['maxnum']
+        rename_files = bool(arguments['--rename-files'])
         #download episodes for a specific feed
         if arguments['<shortname>']:
             feed = find_feed(arguments['<shortname>'])
             if feed:
-                download_multiple(feed, maxnum)
+                download_multiple(feed, maxnum, rename_files)
                 exit(0)
             else:
                 print_err("feed {} not found".format(arguments['<shortname>']))
@@ -347,7 +360,7 @@ def main():
         #download episodes for all feeds.
         else:
             for feed in available_feeds():
-                download_multiple(feed,  maxnum)
+                download_multiple(feed, maxnum, rename_files)
             exit(0)
     if arguments['rename']:
         rename(arguments['<shortname>'], arguments['<newname>'])
