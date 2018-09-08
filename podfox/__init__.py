@@ -30,6 +30,8 @@ import os.path
 import requests
 import sys
 import re
+import concurrent.futures
+import threading
 
 # RSS datetimes follow RFC 2822, same as email headers.
 # this is the chain of stackoverflow posts that led me to believe this is true.
@@ -191,10 +193,12 @@ def episodes_from_feed(d):
 
 
 def download_multiple(feed, maxnum, rename):
-    for episode in feed['episodes']:
-        if maxnum == 0:
-            break
-        if not episode['downloaded']:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        # parse up to maxnum of the not downloaded episodes
+        future_to_episodes = {}
+        for episode in list(filter(lambda ep: not ep['downloaded'], feed['episodes']))[:maxnum]:
+            filename = ""
+
             if rename:
                 title = episode['title']
                 for c in '<>\"|*%?\\/': 
@@ -203,16 +207,21 @@ def download_multiple(feed, maxnum, rename):
                 extension = os.path.splitext(urlparse(episode['url'])[2])[1]
                 filename = "{}_{}{}".format(strftime('%Y-%m-%d', localtime(episode['published'])),
                                             title, extension)
-                download_single(feed['shortname'], episode['url'], filename)
-            else:
-                download_single(feed['shortname'], episode['url'])
-            episode['downloaded'] = True
-            maxnum -= 1
+
+            
+            future_to_episodes[executor.submit(download_single, feed['shortname'], episode['url'], filename)]=episode
+
+        for future in concurrent.futures.as_completed(future_to_episodes):
+            episode = future_to_episodes[future]
+            try:
+                episode['downloaded'] = future.result()    
+            except Exception as exc:
+                print('%r generated an exception: %s' % (episode['title'], exc))
     overwrite_config(feed)
 
 
 def download_single(folder, url, filename=""):
-    print(url)
+    print("{}: Parsing URL {}".format(threading.current_thread().name, url))
     base = CONFIGURATION['podcast-directory']
     r = requests.get(url.strip(), stream=True)
     if not filename:
@@ -221,11 +230,17 @@ def download_single(folder, url, filename=""):
         except:
             filename = url.split('/')[-1]
             filename = filename.split('?')[0]
-    print_green("{:s} downloading".format(filename))
-    with open(os.path.join(base, folder, filename), 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024**2):
-            f.write(chunk)
-    print("done.")
+    print_green("{}: {:s} downloading".format(threading.current_thread().name, filename))
+
+    try:
+        with open(os.path.join(base, folder, filename), 'wb') as f:
+            for chunk in r.iter_content(chunk_size=1024**2):
+                f.write(chunk)
+    except EnvironmentError:
+        print_err("{}: Error while writing {}".format(threading.current_thread().name, filename))
+        return False
+    print("{}: done.".format(threading.current_thread().name))
+    return True
 
 
 def available_feeds():
