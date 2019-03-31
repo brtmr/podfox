@@ -40,6 +40,16 @@ import re
 from email.utils import parsedate
 from time import mktime
 
+CONFIGURATION_DEFAULTS = {
+    "podcast-directory": "~/Podcasts",
+    "maxnum": 5000,
+    "mimetypes": [ "audio/aac",
+                   "audio/ogg",
+                   "audio/mpeg",
+                   "audio/mp3",
+                   "audio/mp4",
+                   "video/mp4" ]
+}
 CONFIGURATION = {}
 
 mimetypes = [
@@ -165,6 +175,8 @@ def overwrite_config(feed):
 
 
 def episodes_from_feed(d):
+    mimetypes = CONFIGURATION['mimetypes']
+
     episodes = []
     for entry in d.entries:
         # convert publishing time to unix time, so that we can sort
@@ -290,12 +302,20 @@ def main():
 
     configfile = expanduser(arguments["--config"])
 
-    with open(configfile) as conf_file:
-        try:
-            CONFIGURATION = json.load(conf_file)
-        except ValueError:
-            print("invalid json in configuration file.")
-            exit(-1)
+    try:
+        with open(configfile) as conf_file:
+            try:
+                userconf = json.load(conf_file)
+            except ValueError:
+                print("invalid json in configuration file.")
+                exit(-1)
+    except FileNotFoundError:
+        userconf = {}
+
+    CONFIGURATION = CONFIGURATION_DEFAULTS.copy()
+    CONFIGURATION.update(userconf)
+    CONFIGURATION['podcast-directory'] = os.path.expanduser(CONFIGURATION['podcast-directory'])
+
     #handle the commands
     if arguments['import']:
         if arguments['<shortname>'] is None:
