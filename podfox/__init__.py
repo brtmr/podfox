@@ -45,7 +45,8 @@ CONFIGURATION = {}
 mimetypes = [
     'audio/ogg',
     'audio/mpeg',
-    'video/mp4'
+    'video/mp4',
+    'audio/x-m4a'
 ]
 
 def print_err(err):
