@@ -20,15 +20,17 @@ Options:
 from colorama import Fore, Back, Style
 from docopt import docopt
 from os.path import expanduser
+from progress.bar import IncrementalBar
 from sys import exit
 import colorama
 import feedparser
 import json
+import math
 import os
 import os.path
+import re
 import requests
 import sys
-import re
 
 # RSS datetimes follow RFC 2822, same as email headers.
 # this is the chain of stackoverflow posts that led me to believe this is true.
@@ -51,6 +53,8 @@ CONFIGURATION_DEFAULTS = {
                    "video/mp4" ]
 }
 CONFIGURATION = {}
+CHUNK_SIZE = 1024 * 128  # 128 kB chunks
+FILENAME_DISPLAY_LENGTH = 16
 
 mimetypes = [
     'audio/ogg',
@@ -213,20 +217,45 @@ def download_multiple(feed, maxnum):
     overwrite_config(feed)
 
 
-def download_single(folder, url):
-    print(url)
+def convert_to_megabytes(num_bytes):
+    return num_bytes * CHUNK_SIZE / 1024 ** 2
+
+
+def trim_filename(filename):
+    if len(filename) > FILENAME_DISPLAY_LENGTH:
+        return filename[:FILENAME_DISPLAY_LENGTH - 3] + '...'
+    return filename
+
+
+class DownloadBar(IncrementalBar):
+    width = 24
+    suffix = '%(elapsed_download).1f / %(total_download).1f MB  (%(avg_speed).2f MB/s)'
+    @property
+    def elapsed_download(self):
+        return convert_to_megabytes(self.index)
+    @property
+    def total_download(self):
+        return convert_to_megabytes(self.max)
+    @property
+    def avg_speed(self):
+        return convert_to_megabytes(1 / self.avg)
+
+
+def download_single(folder, url, show_progress=False):
     base = CONFIGURATION['podcast-directory']
     r = requests.get(url.strip(), stream=True)
+    num_chunks = math.ceil(int(r.headers['content-length']) / CHUNK_SIZE)
     try:
-        filename=re.findall('filename="([^"]+)',r.headers['content-disposition'])[0]
+        filename = re.findall('filename="([^"]+)', r.headers['content-disposition'])[0]
     except:
         filename = url.split('/')[-1]
         filename = filename.split('?')[0]
-    print_green("{:s} downloading".format(filename))
+    bar = DownloadBar(trim_filename(filename), max=num_chunks)
     with open(os.path.join(base, folder, filename), 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024**2):
+        for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
             f.write(chunk)
-    print("done.")
+            bar.next()
+    bar.finish()
 
 
 def available_feeds():
