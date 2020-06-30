@@ -7,7 +7,7 @@ Usage:
     podfox.py update [<shortname>] [-c=<path>]
     podfox.py feeds [-c=<path>]
     podfox.py episodes <shortname> [-c=<path>]
-    podfox.py download [<shortname> --how-many=<n>] [-c=<path>]
+    podfox.py download [<shortname> --how-many=<n>] [-c=<path>] [-p --show-progress]
     podfox.py rename <shortname> <newname> [-c=<path>]
 
 Options:
@@ -68,8 +68,9 @@ def print_err(err):
           Fore.RESET + Back.RESET + Style.RESET_ALL, file=sys.stderr)
 
 
-def print_green(s):
-    print(Fore.GREEN + s + Fore.RESET)
+def print_green(s, end='\n'):
+    print(Fore.GREEN + s + Fore.RESET, end=end)
+    sys.stdout.flush()
 
 
 def get_folder(shortname):
@@ -206,12 +207,12 @@ def episodes_from_feed(d):
     return episodes
 
 
-def download_multiple(feed, maxnum):
+def download_multiple(feed, maxnum, show_progress=False):
     for episode in feed['episodes']:
         if maxnum == 0:
             break
         if not episode['downloaded']:
-            download_single(feed['shortname'], episode['url'])
+            download_single(feed['shortname'], episode['url'], show_progress=show_progress)
             episode['downloaded'] = True
             maxnum -= 1
     overwrite_config(feed)
@@ -250,12 +251,19 @@ def download_single(folder, url, show_progress=False):
     except:
         filename = url.split('/')[-1]
         filename = filename.split('?')[0]
-    bar = DownloadBar(trim_filename(filename), max=num_chunks)
+    if show_progress:
+        bar = DownloadBar(trim_filename(filename), max=num_chunks)
+    else:
+        print_green(f'Downloading {filename}... ', end='')
     with open(os.path.join(base, folder, filename), 'wb') as f:
         for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
             f.write(chunk)
-            bar.next()
-    bar.finish()
+            if show_progress:
+                bar.next()
+    if show_progress:
+        bar.finish()
+    else:
+        print_green('done')
 
 
 def available_feeds():
@@ -389,7 +397,7 @@ def main():
         if arguments['<shortname>']:
             feed = find_feed(arguments['<shortname>'])
             if feed:
-                download_multiple(feed, maxnum)
+                download_multiple(feed, maxnum, arguments['--show-progress'])
                 exit(0)
             else:
                 print_err("feed {} not found".format(arguments['<shortname>']))
@@ -397,7 +405,7 @@ def main():
         #download episodes for all feeds.
         else:
             for feed in available_feeds():
-                download_multiple(feed,  maxnum)
+                download_multiple(feed,  maxnum, arguments['--show-progress'])
             exit(0)
     if arguments['rename']:
         rename(arguments['<shortname>'], arguments['<newname>'])
