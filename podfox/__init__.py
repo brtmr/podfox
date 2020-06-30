@@ -12,7 +12,8 @@ Usage:
 
 Options:
     -c --config=<path>    Specify an alternate config file [default: ~/.podfox.json]
-    -h --help     Show this help
+    -p --show-progress    When downloading episodes, display a progress bar
+    -h --help             Show this help
 """
 # (C) 2015 Bastian Reitemeier
 # mail(at)brtmr.de
