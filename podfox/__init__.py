@@ -207,14 +207,17 @@ def download_multiple(feed, maxnum):
         if maxnum == 0:
             break
         if not episode['downloaded']:
-            download_single(feed['shortname'], episode['url'])
-            episode['downloaded'] = True
-            maxnum -= 1
-    overwrite_config(feed)
+            b = download_single(feed['shortname'], episode['url'])
+            if b >= 0:
+                episode['downloaded'] = True
+                overwrite_config(feed)
+            if b > 0:
+                maxnum -= 1
 
 
 def download_single(folder, url):
     print(url)
+    downloaded = 0 #not downloaded
     base = CONFIGURATION['podcast-directory']
     r = requests.get(url.strip(), stream=True)
     try:
@@ -222,11 +225,24 @@ def download_single(folder, url):
     except:
         filename = url.split('/')[-1]
         filename = filename.split('?')[0]
-    print_green("{:s} downloading".format(filename))
-    with open(os.path.join(base, folder, filename), 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024**2):
-            f.write(chunk)
+    if os.path.exists(os.path.join(base, folder, filename)):
+        print_green("{:s} skipping".format(filename)) 
+    else:
+        print_green("{:s} downloading".format(filename))
+        try:
+            r = requests.get(url, stream=True)
+            with open(os.path.join(base, folder, filename), 'wb') as f:
+                for chunk in r.iter_content(chunk_size=1024**2):
+                    f.write(chunk)
+            downloaded = 1
+        except:
+            print_err("Problem with downloading file, will retry again")
+            downloaded = -1 #need to try again
+            if os.path.exists(os.path.join(base, folder, filename)):
+                os.remove(os.path.join(base, folder, filename))
+
     print("done.")
+    return downloaded
 
 
 def available_feeds():
