@@ -46,6 +46,7 @@ CONFIGURATION_DEFAULTS = {
     "mimetypes": [ "audio/aac",
                    "audio/ogg",
                    "audio/mpeg",
+                   "audio/x-mpeg",
                    "audio/mp3",
                    "audio/mp4",
                    "video/mp4" ]
@@ -55,6 +56,7 @@ CONFIGURATION = {}
 mimetypes = [
     'audio/ogg',
     'audio/mpeg',
+    'audio/x-mpeg',
     'video/mp4',
     'audio/x-m4a'
 ]
@@ -182,7 +184,10 @@ def episodes_from_feed(d):
     for entry in d.entries:
         # convert publishing time to unix time, so that we can sort
         # this should be unix time, barring any timezone shenanigans
-        date = mktime(parsedate(entry.published))
+        try:
+            date = mktime(parsedate(entry.published))
+        except TypeError:
+            continue
         if hasattr(entry, 'links'):
             for link in entry.links:
                 if not hasattr(link, 'type'):
