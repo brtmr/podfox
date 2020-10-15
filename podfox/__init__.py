@@ -9,6 +9,7 @@ Usage:
     podfox.py episodes <shortname> [-c=<path>]
     podfox.py download [<shortname> --how-many=<n>] [-c=<path>]
     podfox.py rename <shortname> <newname> [-c=<path>]
+    podfox.py reset
 
 Options:
     -c --config=<path>    Specify an alternate config file [default: ~/.podfox.json]
@@ -298,11 +299,16 @@ def pretty_print_episodes(feed):
         status = 'Downloaded' if e['downloaded'] else 'Not Downloaded'
         print(format_str.format(e['title'][:40], status))
 
+def reset_feed(feed):
+    for e in feed['episodes']:
+        e['downloaded'] = False
+    overwrite_config(feed)
 
 def main():
     global CONFIGURATION
     colorama.init()
     arguments = docopt(__doc__, version='p0d 0.01')
+    print(arguments)
     # before we do anything with the commands,
     # find the configuration file
 
@@ -377,3 +383,8 @@ def main():
             exit(0)
     if arguments['rename']:
         rename(arguments['<shortname>'], arguments['<newname>'])
+    if arguments['reset']:
+        for feed in available_feeds():
+            print_green('resetting {}'.format(feed['title']))
+            reset_feed(feed)
+            exit(0)
