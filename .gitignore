@@ -1,1 +1,4 @@
 *.swp
+.env/
+.vscode/
+**/__pycache__/
