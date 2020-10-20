@@ -7,12 +7,13 @@ Usage:
     podfox.py update [<shortname>] [-c=<path>]
     podfox.py feeds [-c=<path>]
     podfox.py episodes <shortname> [-c=<path>]
-    podfox.py download [<shortname> --how-many=<n>] [-c=<path>]
+    podfox.py download [<shortname> --how-many=<n>] [-c=<path>] [-p --show-progress]
     podfox.py rename <shortname> <newname> [-c=<path>]
 
 Options:
     -c --config=<path>    Specify an alternate config file [default: ~/.podfox.json]
-    -h --help     Show this help
+    -p --show-progress    When downloading episodes, display a progress bar
+    -h --help             Show this help
 """
 # (C) 2015 Bastian Reitemeier
 # mail(at)brtmr.de
@@ -20,10 +21,12 @@ Options:
 from colorama import Fore, Back, Style
 from docopt import docopt
 from os.path import expanduser
+from progress.bar import IncrementalBar
 from sys import exit
 import colorama
 import feedparser
 import json
+import math
 import os
 import os.path
 import requests
@@ -43,29 +46,27 @@ from time import mktime
 CONFIGURATION_DEFAULTS = {
     "podcast-directory": "~/Podcasts",
     "maxnum": 5000,
-    "mimetypes": [ "audio/aac",
-                   "audio/ogg",
-                   "audio/mpeg",
-                   "audio/mp3",
-                   "audio/mp4",
-                   "video/mp4" ]
+    "mimetypes": ["audio/aac",
+                  "audio/ogg",
+                  "audio/mpeg",
+                  "audio/mp3",
+                  "audio/mp4",
+                  "video/mp4",
+                  'audio/x-m4a'
+                  ]
 }
 CONFIGURATION = {}
-
-mimetypes = [
-    'audio/ogg',
-    'audio/mpeg',
-    'video/mp4',
-    'audio/x-m4a'
-]
+CHUNK_SIZE = 1024 * 128  # 128 kB chunks
+FILENAME_DISPLAY_LENGTH = 16
 
 def print_err(err):
     print(Fore.RED + Style.BRIGHT + err +
           Fore.RESET + Back.RESET + Style.RESET_ALL, file=sys.stderr)
 
 
-def print_green(s):
-    print(Fore.GREEN + s + Fore.RESET)
+def print_green(s, end='\n'):
+    print(Fore.GREEN + s + Fore.RESET, end=end)
+    sys.stdout.flush()
 
 
 def get_folder(shortname):
@@ -84,14 +85,14 @@ def sort_feed(feed):
 
 
 def import_feed(url, shortname=''):
-    '''
+    """
     creates a folder for the new feed, and then inserts a new feed.json
     that will contain all the necessary information about this feed, and
     all the episodes contained.
-    '''
+    """
     # configuration for this feed, will be written to file.
     feed = {}
-    #get the feed.
+    # get the feed.
     d = feedparser.parse(url)
 
     if shortname:
@@ -102,8 +103,8 @@ def import_feed(url, shortname=''):
             exit(-1)
         else:
             os.makedirs(folder)
-    #if the user did not specify a folder name,
-    #we have to create one from the title
+    # if the user did not specify a folder name,
+    # we have to create one from the title
     if not shortname:
         # the rss advertises a title, lets use that.
         if hasattr(d['feed'], 'title'):
@@ -115,7 +116,7 @@ def import_feed(url, shortname=''):
         # so foldernames will be restricted to lowercase ascii letters,
         # numbers, and dashes:
         title = ''.join(ch for ch in title
-                if ch.isalnum() or ch == ' ')
+                        if ch.isalnum() or ch == ' ')
         shortname = title.replace(' ', '-').lower()
         if not shortname:
             print_err('could not auto-deduce shortname.')
@@ -128,9 +129,9 @@ def import_feed(url, shortname=''):
             exit(-1)
         else:
             os.makedirs(folder)
-    #we have succesfully generated a folder that we can store the files
-    #in
-    #trawl all the entries, and find links to audio files.
+    # we have succesfully generated a folder that we can store the files
+    # in
+    # trawl all the entries, and find links to audio files.
     feed['episodes'] = episodes_from_feed(d)
     feed['shortname'] = shortname
     feed['title'] = d['feed']['title']
@@ -146,12 +147,12 @@ def import_feed(url, shortname=''):
 
 
 def update_feed(feed):
-    '''
+    """
     download the current feed, and insert previously unknown
     episodes into our local config.
-    '''
+    """
     d = feedparser.parse(feed['url'])
-    #only append new episodes!
+    # only append new episodes!
     for episode in episodes_from_feed(d):
         found = False
         for old_episode in feed['episodes']:
@@ -166,10 +167,10 @@ def update_feed(feed):
 
 
 def overwrite_config(feed):
-    '''
+    """
     after updating the feed, or downloading new items,
     we want to update our local config to reflect that fact.
-    '''
+    """
     filename = get_feed_file(feed['shortname'])
     with open(filename, 'w') as f:
         json.dump(feed, f, indent=4)
@@ -193,21 +194,21 @@ def episodes_from_feed(d):
                     else:
                         episode_title = link.href
                     episodes.append({
-                        'title':      episode_title,
-                        'url':        link.href,
+                        'title': episode_title,
+                        'url': link.href,
                         'downloaded': False,
-                        'listened':   False,
-                        'published':  date
-                        })
+                        'listened': False,
+                        'published': date
+                    })
     return episodes
 
 
-def download_multiple(feed, maxnum):
+def download_multiple(feed, maxnum, show_progress=False):
     for episode in feed['episodes']:
         if maxnum == 0:
             break
         if not episode['downloaded']:
-            b = download_single(feed['shortname'], episode['url'])
+            b = download_single(feed['shortname'], episode['url'], show_progress=show_progress)
             if b >= 0:
                 episode['downloaded'] = True
                 overwrite_config(feed)
@@ -215,47 +216,82 @@ def download_multiple(feed, maxnum):
                 maxnum -= 1
 
 
-def download_single(folder, url):
-    print(url)
-    downloaded = 0 #not downloaded
+def convert_to_megabytes(num_bytes):
+    return num_bytes * CHUNK_SIZE / 1024 ** 2
+
+
+def trim_filename(filename):
+    if len(filename) > FILENAME_DISPLAY_LENGTH:
+        return filename[:FILENAME_DISPLAY_LENGTH - 3] + '...'
+    return filename
+
+
+class DownloadBar(IncrementalBar):
+    width = 24
+    suffix = '%(elapsed_download).1f / %(total_download).1f MB  (%(avg_speed).2f MB/s)'
+
+    @property
+    def elapsed_download(self):
+        return convert_to_megabytes(self.index)
+
+    @property
+    def total_download(self):
+        return convert_to_megabytes(self.max)
+
+    @property
+    def avg_speed(self):
+        return convert_to_megabytes(1 / self.avg)
+
+
+def download_single(folder, url, show_progress=False):
+    downloaded = 0  # not downloaded
+    bar = None
     base = CONFIGURATION['podcast-directory']
     r = requests.get(url.strip(), stream=True)
+    num_chunks = math.ceil(int(r.headers['content-length']) / CHUNK_SIZE)
     try:
-        filename=re.findall('filename="([^"]+)',r.headers['content-disposition'])[0]
+        filename = re.findall('filename="([^"]+)', r.headers['content-disposition'])[0]
     except:
         filename = url.split('/')[-1]
         filename = filename.split('?')[0]
     if os.path.exists(os.path.join(base, folder, filename)):
-        print_green("{:s} skipping".format(filename)) 
+        print_green("{:s} skipping".format(filename))
     else:
-        print_green("{:s} downloading".format(filename))
+        if show_progress:
+            bar = DownloadBar(trim_filename(filename), max=num_chunks)
+        else:
+            print_green("{:s} downloading".format(filename))
         try:
             r = requests.get(url, stream=True)
             with open(os.path.join(base, folder, filename), 'wb') as f:
-                for chunk in r.iter_content(chunk_size=1024**2):
+                for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
                     f.write(chunk)
+                    if show_progress:
+                        bar.next()
             downloaded = 1
         except:
             print_err("Problem with downloading file, will retry again")
-            downloaded = -1 #need to try again
+            downloaded = -1  # need to try again
             if os.path.exists(os.path.join(base, folder, filename)):
                 os.remove(os.path.join(base, folder, filename))
-
-    print("done.")
+    if show_progress:
+        bar.finish()
+    else:
+        print("done.")
     return downloaded
 
 
 def available_feeds():
-    '''
+    """
     podfox will save each feed to its own folder. Each folder should
     contain a json configuration file describing which elements
     have been downloaded already, and how many will be kept.
-    '''
+    """
     base = CONFIGURATION['podcast-directory']
     paths = [p for p in os.listdir(base)
              if os.path.isdir(get_folder(p))
              and os.path.isfile(get_feed_file(p))]
-    #for every folder, check wether a configuration file exists.
+    # for every folder, check wether a configuration file exists.
     results = []
     for shortname in paths:
         with open(get_feed_file(shortname), 'r') as f:
@@ -265,17 +301,18 @@ def available_feeds():
 
 
 def find_feed(shortname):
-    '''
+    """
     all feeds are identified by their shortname, which is also the name of
     the folder they will be stored in.
     this function will find the correct folder, and parse the json file
     within that folder to generate the feed data
-    '''
+    """
     feeds = available_feeds()
     for feed in feeds:
         if feed['shortname'] == shortname:
             return feed
     return None
+
 
 def rename(shortname, newname):
     folder = get_folder(shortname)
@@ -288,11 +325,12 @@ def rename(shortname, newname):
     feed['shortname'] = newname
     overwrite_config(feed)
 
+
 def pretty_print_feeds(feeds):
     format_str = Fore.GREEN + '{0:45.45} |'
     format_str += Fore.BLUE + '  {1:40}' + Fore.RESET + Back.RESET
     print(format_str.format('title', 'shortname'))
-    print('='*80)
+    print('=' * 80)
     for feed in feeds:
         format_str = Fore.GREEN + '{0:40.40} {1:3d}{2:1.1} |'
         format_str += Fore.BLUE + '  {3:40}' + Fore.RESET + Back.RESET
@@ -333,7 +371,7 @@ def main():
     CONFIGURATION.update(userconf)
     CONFIGURATION['podcast-directory'] = os.path.expanduser(CONFIGURATION['podcast-directory'])
 
-    #handle the commands
+    # handle the commands
     if arguments['import']:
         if arguments['<shortname>'] is None:
             import_feed(arguments['<feed-url>'])
@@ -372,19 +410,22 @@ def main():
             maxnum = int(arguments['--how-many'])
         else:
             maxnum = CONFIGURATION['maxnum']
-        #download episodes for a specific feed
+        # download episodes for a specific feed
         if arguments['<shortname>']:
             feed = find_feed(arguments['<shortname>'])
             if feed:
-                download_multiple(feed, maxnum)
+                download_multiple(feed, maxnum, arguments['--show-progress'])
                 exit(0)
             else:
                 print_err("feed {} not found".format(arguments['<shortname>']))
                 exit(-1)
-        #download episodes for all feeds.
+        # download episodes for all feeds.
         else:
             for feed in available_feeds():
-                download_multiple(feed,  maxnum)
+                download_multiple(feed, maxnum, arguments['--show-progress'])
             exit(0)
     if arguments['rename']:
         rename(arguments['<shortname>'], arguments['<newname>'])
+
+if __name__ == "__main__":
+    main()
