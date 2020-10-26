@@ -8,6 +8,7 @@ Usage:
     podfox.py feeds [-c=<path>]
     podfox.py episodes <shortname> [-c=<path>]
     podfox.py download [<shortname> --how-many=<n>] [-c=<path>]
+    podfox.py fetch [<shortname> --how-many=<n>] [-c=<path>]
     podfox.py rename <shortname> <newname> [-c=<path>]
 
 Options:
@@ -373,6 +374,29 @@ def main():
         #download episodes for all feeds.
         else:
             for feed in available_feeds():
+                download_multiple(feed,  maxnum)
+            exit(0)
+    if arguments['fetch']:
+        if arguments['--how-many']:
+            maxnum = int(arguments['--how-many'])
+        else:
+            maxnum = CONFIGURATION['maxnum']
+        #download episodes for a specific feed
+        if arguments['<shortname>']:
+            feed = find_feed(arguments['<shortname>'])
+            if feed:
+                print_green('updating and downloading {}'.format(feed['title']))
+                update_feed(feed)
+                download_multiple(feed, maxnum)
+                exit(0)
+            else:
+                print_err("feed {} not found".format(arguments['<shortname>']))
+                exit(-1)
+        #download episodes for all feeds.
+        else:
+            for feed in available_feeds():
+                print_green('updating and downloading {}'.format(feed['title']))
+                update_feed(feed)
                 download_multiple(feed,  maxnum)
             exit(0)
     if arguments['rename']:
