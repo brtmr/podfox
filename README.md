@@ -52,6 +52,7 @@ In podfox, every podcast is identified with its own `shortname`, which is restri
     podfox.py feeds
     podfox.py episodes <shortname>
     podfox.py download [<shortname> --how-many=<n>]
+    podfox.py fetch [<shortname> --how-many=<n>]
 ```
 ### Import 
 
@@ -107,3 +108,7 @@ Extortion Startups | TechSNAP 229         |  Not Downloaded
 
 `podfox download ts --how-many=3` will download the 3 newest techsnap podcasts that have not yet been downloaded. (Skipping newer, but already downloaded ones). If the `--how-many` parameter is omitted, the `maxnum` parameter from the configuration file is used instead.
 
+### Fetch
+
+`podfox fetch` will go through the `update` and `download` processes together,
+allowing the user to run both with a single command.
