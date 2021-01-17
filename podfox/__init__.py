@@ -250,7 +250,7 @@ def download_single(folder, url, filename=""):
 
     try:
         with open(os.path.join(base, folder, filename), 'wb') as f:
-            pbar = tqdm(total=int(r.headers['Content-Length']))
+            pbar = tqdm(total=int(r.headers['Content-Length']), unit='B', unit_scale=True, unit_divisor=1024)
             pbar.set_description(filename if len(filename)<20 else filename[:20])
             for chunk in r.iter_content(chunk_size=1024**2):
                 f.write(chunk)
