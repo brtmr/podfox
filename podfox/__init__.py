@@ -22,6 +22,7 @@ from docopt import docopt
 from os.path import expanduser
 from urllib.parse import urlparse
 from sys import exit
+from tqdm import tqdm
 import colorama
 import feedparser
 import json
@@ -32,6 +33,8 @@ import sys
 import re
 import concurrent.futures
 import threading
+import logging
+logging.basicConfig(level=logging.WARNING)
 
 # RSS datetimes follow RFC 2822, same as email headers.
 # this is the chain of stackoverflow posts that led me to believe this is true.
@@ -234,7 +237,7 @@ def download_multiple(feed, maxnum, rename):
 
 
 def download_single(folder, url, filename=""):
-    print("{}: Parsing URL {}".format(threading.current_thread().name, url))
+    logging.info("{}: Parsing URL {}".format(threading.current_thread().name, url))
     base = CONFIGURATION['podcast-directory']
     r = requests.get(url.strip(), stream=True)
     if not filename:
@@ -243,16 +246,19 @@ def download_single(folder, url, filename=""):
         except:
             filename = url.split('/')[-1]
             filename = filename.split('?')[0]
-    print_green("{}: {:s} downloading".format(threading.current_thread().name, filename))
+    logging.info("{}: {:s} downloading".format(threading.current_thread().name, filename))
 
     try:
         with open(os.path.join(base, folder, filename), 'wb') as f:
+            pbar = tqdm(total=int(r.headers['Content-Length']))
+            pbar.set_description(filename if len(filename)<20 else filename[:20])
             for chunk in r.iter_content(chunk_size=1024**2):
                 f.write(chunk)
+                pbar.update(len(chunk))
     except EnvironmentError:
         print_err("{}: Error while writing {}".format(threading.current_thread().name, filename))
         return False
-    print("{}: done.".format(threading.current_thread().name))
+    logging.info("{}: done.".format(threading.current_thread().name))
     return True
 
 
@@ -343,6 +349,9 @@ def main():
     CONFIGURATION = CONFIGURATION_DEFAULTS.copy()
     CONFIGURATION.update(userconf)
     CONFIGURATION['podcast-directory'] = os.path.expanduser(CONFIGURATION['podcast-directory'])
+
+    # Check if we should use the progress bar
+
 
     #handle the commands
     if arguments['import']:
