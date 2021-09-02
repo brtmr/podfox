@@ -9,6 +9,7 @@ Usage:
     podfox.py episodes <shortname> [-c=<path>]
     podfox.py download [<shortname> --how-many=<n>] [-c=<path>]
     podfox.py rename <shortname> <newname> [-c=<path>]
+    podfox.py prune [<shortname> --maxage-days=<n>]
 
 Options:
     -c --config=<path>    Specify an alternate config file [default: ~/.podfox.json]
@@ -22,6 +23,7 @@ from docopt import docopt
 from os.path import expanduser
 from sys import exit
 import colorama
+import datetime
 import feedparser
 import json
 import os
@@ -77,6 +79,16 @@ def get_folder(shortname):
 
 def get_feed_file(shortname):
     return os.path.join(get_folder(shortname), 'feed.json')
+
+
+def get_filename_from_url(url):
+    return url.split('/')[-1].split('?')[0]
+
+
+def episode_too_old(episode, maxage):
+    now = datetime.datetime.utcnow()
+    dt_published = datetime.datetime.fromtimestamp(episode["published"])
+    return maxage and (now - dt_published > datetime.timedelta(days=maxage))
 
 
 def sort_feed(feed):
@@ -211,28 +223,27 @@ def download_multiple(feed, maxnum):
     for episode in feed['episodes']:
         if maxnum == 0:
             break
-        if not episode['downloaded']:
-            download_single(feed['shortname'], episode['url'])
+        if not episode['downloaded'] and not episode_too_old(episode, CONFIGURATION['maxage-days']):
+            episode['filename'] = download_single(feed['shortname'], episode['url'])
             episode['downloaded'] = True
             maxnum -= 1
     overwrite_config(feed)
-
 
 def download_single(folder, url):
     print(url)
     base = CONFIGURATION['podcast-directory']
     r = requests.get(url.strip(), stream=True)
     try:
-        filename=re.findall('filename="([^"]+)',r.headers['content-disposition'])[0]
+        filename = re.findall('filename="([^"]+)', r.headers['content-disposition'])[0]
     except:
-        filename = url.split('/')[-1]
-        filename = filename.split('?')[0]
+        filename = get_filename_from_url(url)
     print_green("{:s} downloading".format(filename))
     with open(os.path.join(base, folder, filename), 'wb') as f:
         for chunk in r.iter_content(chunk_size=1024**2):
             f.write(chunk)
     print("done.")
 
+    return filename
 
 def available_feeds():
     '''
@@ -275,6 +286,27 @@ def rename(shortname, newname):
     os.rename(folder, new_folder)
     feed = find_feed(shortname)
     feed['shortname'] = newname
+    overwrite_config(feed)
+
+def prune(feed, maxage=0):
+    shortname = feed['shortname']
+    episodes = feed['episodes']
+
+    print(shortname)
+    for i, episode in enumerate(episodes):
+        if episode['downloaded'] and episode_too_old(episode, maxage):
+            episode_path = os.path.join(
+                get_folder(shortname),
+                episode.get("filename", get_filename_from_url(episode['url']))
+            )
+            try:
+                os.remove(episode_path)
+            except OSError:
+                print("Unable to remove file (%s) for episode: %s" % (episode_path, episode["title"],))
+            else:
+                episodes[i]["downloaded"] = False
+    print("done.")
+
     overwrite_config(feed)
 
 def pretty_print_feeds(feeds):
@@ -377,3 +409,23 @@ def main():
             exit(0)
     if arguments['rename']:
         rename(arguments['<shortname>'], arguments['<newname>'])
+
+    if arguments['prune']:
+        if arguments['--maxage-days']:
+            maxage = int(arguments['--maxage-days'])
+        else:
+            maxage = CONFIGURATION.get('maxage-days', 0)
+
+        if arguments['<shortname>']:
+            feed = find_feed(arguments['<shortname>'])
+            if feed:
+                print_green('pruning {}'.format(feed['title']))
+                prune(feed, maxage)
+                exit(0)
+            else:
+                print_err("feed {} not found".format(arguments['<shortname>']))
+                exit(-1)
+        else:
+            for feed in available_feeds():
+                print_green('pruning {}'.format(feed['title']))
+                prune(feed, maxage)
