@@ -7,7 +7,7 @@ Usage:
     podfox.py update [<shortname>] [-c=<path>]
     podfox.py feeds [-c=<path>]
     podfox.py episodes <shortname> [-c=<path>]
-    podfox.py download [<shortname> --how-many=<n>] [-c=<path>]
+    podfox.py download [<shortname> --how-many=<n>] [--rename-files] [-c=<path>]
     podfox.py rename <shortname> <newname> [-c=<path>]
     podfox.py prune [<shortname> --maxage-days=<n>]
 
@@ -21,8 +21,10 @@ Options:
 from colorama import Fore, Back, Style
 from docopt import docopt
 from os.path import expanduser
+from urllib.parse import urlparse
 from sys import exit
 import ssl
+from tqdm import tqdm
 import colorama
 import datetime
 import feedparser
@@ -32,6 +34,8 @@ import os.path
 import requests
 import sys
 import re
+import concurrent.futures
+import threading
 
 # RSS datetimes follow RFC 2822, same as email headers.
 # this is the chain of stackoverflow posts that led me to believe this is true.
@@ -41,7 +45,7 @@ import re
 # how-to-parse-a-rfc-2822-date-time-into-a-python-datetime
 
 from email.utils import parsedate
-from time import mktime
+from time import mktime, localtime, strftime
 
 CONFIGURATION_DEFAULTS = {
     "podcast-directory": "~/Podcasts",
@@ -82,20 +86,11 @@ def get_feed_file(shortname):
     return os.path.join(get_folder(shortname), 'feed.json')
 
 
-def get_filename_from_url(url):
-    return url.split('/')[-1].split('?')[0]
-
-
-def episode_too_old(episode, maxage):
-    now = datetime.datetime.utcnow()
-    dt_published = datetime.datetime.fromtimestamp(episode["published"])
-    return maxage and (now - dt_published > datetime.timedelta(days=maxage))
-
-
 def sort_feed(feed):
     feed['episodes'] = sorted(feed['episodes'], key=lambda k: k['published'],
                               reverse=True)
     return feed
+
 
 def import_feed(url, shortname=''):
     '''
@@ -221,31 +216,59 @@ def episodes_from_feed(d):
     return episodes
 
 
-def download_multiple(feed, maxnum):
-    for episode in feed['episodes']:
-        if maxnum == 0:
-            break
-        if not episode['downloaded'] and not episode_too_old(episode, CONFIGURATION['maxage-days']):
-            episode['filename'] = download_single(feed['shortname'], episode['url'])
-            episode['downloaded'] = True
-            maxnum -= 1
+def download_multiple(feed, maxnum, rename):
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        # parse up to maxnum of the not downloaded episodes
+        future_to_episodes = {}
+        for episode in list(filter(lambda ep: not ep['downloaded'], feed['episodes']))[:maxnum]:
+            filename = ""
+
+            if rename:
+                title = episode['title']
+                for c in '<>\"|*%?\\/': 
+                    title = title.replace(c, "")
+                title = title.replace(" ", "_").replace("’", "'").replace("—", "-").replace(":", ".")
+                extension = os.path.splitext(urlparse(episode['url'])[2])[1]
+                filename = "{}_{}{}".format(strftime('%Y-%m-%d', localtime(episode['published'])),
+                                            title, extension)
+
+            
+            future_to_episodes[executor.submit(download_single, feed['shortname'], episode['url'], filename)]=episode
+
+        for future in concurrent.futures.as_completed(future_to_episodes):
+            episode = future_to_episodes[future]
+            try:
+                episode['downloaded'] = future.result()    
+            except Exception as exc:
+                print('%r generated an exception: %s' % (episode['title'], exc))
     overwrite_config(feed)
 
-def download_single(folder, url):
-    print(url)
+
+def download_single(folder, url, filename=""):
+    logging.info("{}: Parsing URL {}".format(threading.current_thread().name, url))
     base = CONFIGURATION['podcast-directory']
     r = requests.get(url.strip(), stream=True)
-    try:
-        filename = re.findall('filename="([^"]+)', r.headers['content-disposition'])[0]
-    except:
-        filename = get_filename_from_url(url)
-    print_green("{:s} downloading".format(filename))
-    with open(os.path.join(base, folder, filename), 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024**2):
-            f.write(chunk)
-    print("done.")
+    if not filename:
+        try:
+            filename=re.findall('filename="([^"]+)',r.headers['content-disposition'])[0]
+        except:
+            filename = url.split('/')[-1]
+            filename = filename.split('?')[0]
+    logging.info("{}: {:s} downloading".format(threading.current_thread().name, filename))
 
-    return filename
+    try:
+        with open(os.path.join(base, folder, filename), 'wb') as f:
+            pbar = tqdm(total=int(r.headers['Content-Length']), unit='B', unit_scale=True, unit_divisor=1024)
+            pbar.set_description(filename if len(filename)<20 else filename[:20])
+            for chunk in r.iter_content(chunk_size=1024**2):
+                f.write(chunk)
+                pbar.update(len(chunk))
+    except EnvironmentError:
+        print_err("{}: Error while writing {}".format(threading.current_thread().name, filename))
+        return False
+    logging.info("{}: done.".format(threading.current_thread().name))
+    return True
+
 
 def available_feeds():
     '''
@@ -395,11 +418,12 @@ def main():
             maxnum = int(arguments['--how-many'])
         else:
             maxnum = CONFIGURATION['maxnum']
+        rename_files = bool(arguments['--rename-files'])
         #download episodes for a specific feed
         if arguments['<shortname>']:
             feed = find_feed(arguments['<shortname>'])
             if feed:
-                download_multiple(feed, maxnum)
+                download_multiple(feed, maxnum, rename_files)
                 exit(0)
             else:
                 print_err("feed {} not found".format(arguments['<shortname>']))
@@ -407,7 +431,7 @@ def main():
         #download episodes for all feeds.
         else:
             for feed in available_feeds():
-                download_multiple(feed,  maxnum)
+                download_multiple(feed, maxnum, rename_files)
             exit(0)
     if arguments['rename']:
         rename(arguments['<shortname>'], arguments['<newname>'])
