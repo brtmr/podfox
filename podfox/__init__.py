@@ -22,6 +22,7 @@ from colorama import Fore, Back, Style
 from docopt import docopt
 from os.path import expanduser
 from sys import exit
+import ssl
 import colorama
 import datetime
 import feedparser
@@ -96,7 +97,6 @@ def sort_feed(feed):
                               reverse=True)
     return feed
 
-
 def import_feed(url, shortname=''):
     '''
     creates a folder for the new feed, and then inserts a new feed.json
@@ -105,6 +105,8 @@ def import_feed(url, shortname=''):
     '''
     # configuration for this feed, will be written to file.
     feed = {}
+    if hasattr(ssl, '_create_unverified_context'):
+        ssl._create_default_https_context = ssl._create_unverified_context
     #get the feed.
     d = feedparser.parse(url)
 
