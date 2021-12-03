@@ -241,31 +241,72 @@ def download_multiple(feed, maxnum, rename):
                 extension = os.path.splitext(urlparse(episode['url'])[2])[1]
                 filename = "{}_{}{}".format(strftime('%Y-%m-%d', localtime(episode['published'])),
                                             title, extension)
+
             episode['filename'] = download_single(feed['shortname'], episode['url'], filename)
             episode['downloaded'] = True
             maxnum -= 1
 
 
 
-# def download_multiple_thread(feed, maxnum, rename):
-#     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-#         # parse up to maxnum of the not downloaded episodes
-#         future_to_episodes = {}
-#         for episode in list(filter(lambda ep: not ep['downloaded'], feed['episodes']))[:maxnum]:
+def download_multiple_thread(feed, maxnum, rename):
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        # parse up to maxnum of the not downloaded episodes
+        future_to_episodes = {}
+        for episode in list(filter(lambda ep: not ep['downloaded'], feed['episodes']))[:maxnum]:
+            if maxnum == 0:
+                break
+            if not episode['downloaded'] and not episode_too_old(episode, CONFIGURATION['maxage-days']):
 
-            
-#             future_to_episodes[executor.submit(download_single, feed['shortname'], episode['url'], filename)]=episode
+                filename = ""
 
-#         for future in concurrent.futures.as_completed(future_to_episodes):
-#             episode = future_to_episodes[future]
-#             try:
-#                 episode['downloaded'] = future.result()    
-#             except Exception as exc:
-#                 print('%r generated an exception: %s' % (episode['title'], exc))
-#     overwrite_config(feed)
+                if rename:
+                    title = episode['title']
+                    for c in '<>\"|*%?\\/': 
+                        title = title.replace(c, "")
+                    title = title.replace(" ", "_").replace("’", "'").replace("—", "-").replace(":", ".")
+                    extension = os.path.splitext(urlparse(episode['url'])[2])[1]
+                    filename = "{}_{}{}".format(strftime('%Y-%m-%d', localtime(episode['published'])),
+                                                title, extension)
+
+                future_to_episodes[executor.submit(download_single_thread, feed['shortname'], episode['url'], filename)]=episode
+
+        for future in concurrent.futures.as_completed(future_to_episodes):
+            episode = future_to_episodes[future]
+            logging.info(f"result: {future.result()}")
+            try:
+                episode['downloaded'] = future.result() != False
+                if future.result() != False:
+                    episode['filename'] = future.result()
+            except Exception as exc:
+                print('%r generated an exception: %s' % (episode['title'], exc))
+    overwrite_config(feed)
 
 
 def download_single(folder, url, filename=""):
+    print(url)
+    logging.info("Parsing URL {}".format(url))
+    base = CONFIGURATION['podcast-directory']
+    r = requests.get(url.strip(), stream=True)
+    if not filename:
+        try:
+            filename=re.findall('filename="([^"]+)',r.headers['content-disposition'])[0]
+        except:
+            filename = get_filename_from_url(url)
+    logging.info("{:s} downloading".format(filename))
+    with open(os.path.join(base, folder, filename), 'wb') as f:
+        for chunk in r.iter_content(chunk_size=1024**2):
+            # f.write(chunk)
+            pbar = tqdm(total=int(r.headers['Content-Length']), unit='B', unit_scale=True, unit_divisor=1024)
+            pbar.set_description(filename if len(filename)<20 else filename[:20])
+            for chunk in r.iter_content(chunk_size=1024**2):
+                f.write(chunk)
+                pbar.update(len(chunk))
+
+    logging.info("done.")
+
+    return filename
+
+def download_single_thread(folder, url, filename=""):
     logging.info("{}: Parsing URL {}".format(threading.current_thread().name, url))
     base = CONFIGURATION['podcast-directory']
     r = requests.get(url.strip(), stream=True)
@@ -273,8 +314,7 @@ def download_single(folder, url, filename=""):
         try:
             filename=re.findall('filename="([^"]+)',r.headers['content-disposition'])[0]
         except:
-            filename = url.split('/')[-1]
-            filename = filename.split('?')[0]
+            filename = get_filename_from_url(url)
     logging.info("{}: {:s} downloading".format(threading.current_thread().name, filename))
 
     try:
@@ -445,7 +485,8 @@ def main():
         if arguments['<shortname>']:
             feed = find_feed(arguments['<shortname>'])
             if feed:
-                download_multiple(feed, maxnum, rename_files)
+                # download_multiple(feed, maxnum, rename_files)
+                download_multiple_thread(feed, maxnum, rename_files)
                 exit(0)
             else:
                 print_err("feed {} not found".format(arguments['<shortname>']))
@@ -453,7 +494,8 @@ def main():
         #download episodes for all feeds.
         else:
             for feed in available_feeds():
-                download_multiple(feed, maxnum, rename_files)
+                # download_multiple(feed, maxnum, rename_files)
+                download_multiple_thread(feed, maxnum, rename_files)
             exit(0)
     if arguments['rename']:
         rename(arguments['<shortname>'], arguments['<newname>'])
