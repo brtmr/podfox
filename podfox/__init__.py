@@ -36,7 +36,8 @@ import sys
 import re
 import concurrent.futures
 import threading
-
+import logging
+logging.basicConfig(level=logging.DEBUG)
 # RSS datetimes follow RFC 2822, same as email headers.
 # this is the chain of stackoverflow posts that led me to believe this is true.
 # http://stackoverflow.com/questions/11993258/
@@ -86,11 +87,20 @@ def get_feed_file(shortname):
     return os.path.join(get_folder(shortname), 'feed.json')
 
 
+def get_filename_from_url(url):
+    return url.split('/')[-1].split('?')[0]
+
+
+def episode_too_old(episode, maxage):
+    now = datetime.datetime.utcnow()
+    dt_published = datetime.datetime.fromtimestamp(episode["published"])
+    return maxage and (now - dt_published > datetime.timedelta(days=maxage))
+
+
 def sort_feed(feed):
     feed['episodes'] = sorted(feed['episodes'], key=lambda k: k['published'],
                               reverse=True)
     return feed
-
 
 def import_feed(url, shortname=''):
     '''
@@ -217,10 +227,10 @@ def episodes_from_feed(d):
 
 
 def download_multiple(feed, maxnum, rename):
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        # parse up to maxnum of the not downloaded episodes
-        future_to_episodes = {}
-        for episode in list(filter(lambda ep: not ep['downloaded'], feed['episodes']))[:maxnum]:
+    for episode in feed['episodes']:
+        if maxnum == 0:
+            break
+        if not episode['downloaded'] and not episode_too_old(episode, CONFIGURATION['maxage-days']):
             filename = ""
 
             if rename:
@@ -231,17 +241,28 @@ def download_multiple(feed, maxnum, rename):
                 extension = os.path.splitext(urlparse(episode['url'])[2])[1]
                 filename = "{}_{}{}".format(strftime('%Y-%m-%d', localtime(episode['published'])),
                                             title, extension)
+            episode['filename'] = download_single(feed['shortname'], episode['url'], filename)
+            episode['downloaded'] = True
+            maxnum -= 1
+
+
+
+# def download_multiple_thread(feed, maxnum, rename):
+#     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+#         # parse up to maxnum of the not downloaded episodes
+#         future_to_episodes = {}
+#         for episode in list(filter(lambda ep: not ep['downloaded'], feed['episodes']))[:maxnum]:
 
             
-            future_to_episodes[executor.submit(download_single, feed['shortname'], episode['url'], filename)]=episode
+#             future_to_episodes[executor.submit(download_single, feed['shortname'], episode['url'], filename)]=episode
 
-        for future in concurrent.futures.as_completed(future_to_episodes):
-            episode = future_to_episodes[future]
-            try:
-                episode['downloaded'] = future.result()    
-            except Exception as exc:
-                print('%r generated an exception: %s' % (episode['title'], exc))
-    overwrite_config(feed)
+#         for future in concurrent.futures.as_completed(future_to_episodes):
+#             episode = future_to_episodes[future]
+#             try:
+#                 episode['downloaded'] = future.result()    
+#             except Exception as exc:
+#                 print('%r generated an exception: %s' % (episode['title'], exc))
+#     overwrite_config(feed)
 
 
 def download_single(folder, url, filename=""):
@@ -267,7 +288,7 @@ def download_single(folder, url, filename=""):
         print_err("{}: Error while writing {}".format(threading.current_thread().name, filename))
         return False
     logging.info("{}: done.".format(threading.current_thread().name))
-    return True
+    return filename
 
 
 def available_feeds():
@@ -358,6 +379,7 @@ def pretty_print_episodes(feed):
 
 def main():
     global CONFIGURATION
+
     colorama.init()
     arguments = docopt(__doc__, version='p0d 0.01')
     # before we do anything with the commands,
