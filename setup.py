@@ -4,7 +4,7 @@ with open('requirements.txt') as f:
     required = f.read().splitlines()
 
 setup(name='podfox',
-    version='0.1.1',
+    version='0.1.2',
     description='Podcatcher for the terminal',
     url='http://github.com/brtmr/podfox',
     author='Bastian Reitemeier',

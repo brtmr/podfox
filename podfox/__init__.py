@@ -220,6 +220,8 @@ def download_multiple(feed, maxnum, rename):
                 for c in '<>\"|*%?\\/': 
                     title = title.replace(c, "")
                 title = title.replace(" ", "_").replace("’", "'").replace("—", "-").replace(":", ".")
+                # Shorten the title to max 120 characters
+                title = title[:120]
                 extension = os.path.splitext(urlparse(episode['url'])[2])[1]
                 filename = "{}_{}{}".format(strftime('%Y-%m-%d', localtime(episode['published'])),
                                             title, extension)
