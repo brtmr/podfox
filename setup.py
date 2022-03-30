@@ -20,7 +20,7 @@ setup(name='podfox',
     install_requires=[
         'colorama==0.3.7',
         'docopt==0.6.2',
-        'feedparser==5.2.1',
+        'feedparser==6.0.8',
         'requests==2.20.0',
         ],
     )
