@@ -1,6 +1,11 @@
 # podfox - podcatching for the terminal.
 ![podfox logo](https://raw.githubusercontent.com/brtmr/podfox/62a0a3e745185deee2ee92e1250034d65d863c21/logo/logo.png)
 
+Found from there
+https://www.addictivetips.com/ubuntu-linux-tips/download-podcasts-from-the-linux-terminal-with-podfox/
+
+
+
 
 A program for managing & catching podcasts from the terminal. 
 
