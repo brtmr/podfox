@@ -9,7 +9,7 @@ Usage:
     podfox.py episodes <shortname> [-c=<path>]
     podfox.py download [<shortname> --how-many=<n>] [-c=<path>]
     podfox.py rename <shortname> <newname> [-c=<path>]
-    podfox.py prune [<shortname> --maxage-days=<n>]
+    podfox.py prune [<shortname> --maxage-days=<n>] [-c=<path>]
 
 Options:
     -c --config=<path>    Specify an alternate config file [default: ~/.podfox.json]
