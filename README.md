@@ -18,8 +18,9 @@ podfox main configuration file is called `.podfox.json` and should be located in
 Here is mine: 
 ```
 {
-    "podcast-directory" : "/home/basti/podcasts",
-    "maxnum"            : 5
+    "podcast-directory" : "/home/pi/RPi-Jukebox-RFID/shared/audiofolders",
+    "maxnum"            : 10,
+    "max-age-day"       : 60
 }
 ```
 `podcast-directory` is your main directory to store podcast data. This directory should be empty before you
