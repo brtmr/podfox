@@ -391,9 +391,6 @@ def main():
     CONFIGURATION.update(userconf)
     CONFIGURATION['podcast-directory'] = os.path.expanduser(CONFIGURATION['podcast-directory'])
 
-    # Check if we should use the progress bar
-
-
     #handle the commands
     if arguments['import']:
         if arguments['<shortname>'] is None:
