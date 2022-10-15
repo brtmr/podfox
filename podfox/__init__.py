@@ -9,6 +9,7 @@ Usage:
     podfox.py episodes <shortname> [-c=<path>]
     podfox.py download [<shortname> --how-many=<n>] [--rename-files] [-c=<path>]
     podfox.py rename <shortname> <newname> [-c=<path>]
+    podfox.py prune [<shortname> --maxage-days=<n>]
 
 Options:
     -c --config=<path>    Specify an alternate config file [default: ~/.podfox.json]
@@ -24,6 +25,7 @@ from urllib.parse import urlparse
 from sys import exit
 from tqdm import tqdm
 import colorama
+import datetime
 import feedparser
 import json
 import os
@@ -49,9 +51,11 @@ from time import mktime, localtime, strftime
 CONFIGURATION_DEFAULTS = {
     "podcast-directory": "~/Podcasts",
     "maxnum": 5000,
+    "maxage-days": 0,
     "mimetypes": [ "audio/aac",
                    "audio/ogg",
                    "audio/mpeg",
+                   "audio/x-mpeg",
                    "audio/mp3",
                    "audio/mp4",
                    "video/mp4" ]
@@ -61,6 +65,7 @@ CONFIGURATION = {}
 mimetypes = [
     'audio/ogg',
     'audio/mpeg',
+    'audio/x-mpeg',
     'video/mp4',
     'audio/x-m4a'
 ]
@@ -81,6 +86,16 @@ def get_folder(shortname):
 
 def get_feed_file(shortname):
     return os.path.join(get_folder(shortname), 'feed.json')
+
+
+def get_filename_from_url(url):
+    return url.split('/')[-1].split('?')[0]
+
+
+def episode_too_old(episode, maxage):
+    now = datetime.datetime.utcnow()
+    dt_published = datetime.datetime.fromtimestamp(episode["published"])
+    return maxage and (now - dt_published > datetime.timedelta(days=maxage))
 
 
 def sort_feed(feed):
@@ -188,7 +203,10 @@ def episodes_from_feed(d):
     for entry in d.entries:
         # convert publishing time to unix time, so that we can sort
         # this should be unix time, barring any timezone shenanigans
-        date = mktime(parsedate(entry.published))
+        try:
+            date = mktime(parsedate(entry.published))
+        except TypeError:
+            continue
         if hasattr(entry, 'links'):
             for link in entry.links:
                 if not hasattr(link, 'type'):
@@ -212,7 +230,7 @@ def download_multiple(feed, maxnum, rename):
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         # parse up to maxnum of the not downloaded episodes
         future_to_episodes = {}
-        for episode in list(filter(lambda ep: not ep['downloaded'], feed['episodes']))[:maxnum]:
+        for episode in list(filter(lambda ep: not ep['downloaded'] and not episode_too_old(ep, CONFIGURATION['maxage-days']), feed['episodes']))[:maxnum]:
             filename = ""
 
             if rename:
@@ -232,7 +250,9 @@ def download_multiple(feed, maxnum, rename):
         for future in concurrent.futures.as_completed(future_to_episodes):
             episode = future_to_episodes[future]
             try:
-                episode['downloaded'] = future.result()    
+                filename = future.result()
+                episode['filename'] = filename if filename else ''  
+                episode['downloaded'] = True if filename else False
             except Exception as exc:
                 print('%r generated an exception: %s' % (episode['title'], exc))
     overwrite_config(feed)
@@ -246,8 +266,7 @@ def download_single(folder, url, filename=""):
         try:
             filename=re.findall('filename="([^"]+)',r.headers['content-disposition'])[0]
         except:
-            filename = url.split('/')[-1]
-            filename = filename.split('?')[0]
+            filename = get_filename_from_url(url)
     logging.info("{}: {:s} downloading".format(threading.current_thread().name, filename))
 
     try:
@@ -259,10 +278,9 @@ def download_single(folder, url, filename=""):
                 pbar.update(len(chunk))
     except EnvironmentError:
         print_err("{}: Error while writing {}".format(threading.current_thread().name, filename))
-        return False
+        return ''
     logging.info("{}: done.".format(threading.current_thread().name))
-    return True
-
+    return filename
 
 def available_feeds():
     '''
@@ -305,6 +323,27 @@ def rename(shortname, newname):
     os.rename(folder, new_folder)
     feed = find_feed(shortname)
     feed['shortname'] = newname
+    overwrite_config(feed)
+
+def prune(feed, maxage=0):
+    shortname = feed['shortname']
+    episodes = feed['episodes']
+
+    print(shortname)
+    for i, episode in enumerate(episodes):
+        if episode['downloaded'] and episode_too_old(episode, maxage):
+            episode_path = os.path.join(
+                get_folder(shortname),
+                episode.get("filename", get_filename_from_url(episode['url']))
+            )
+            try:
+                os.remove(episode_path)
+            except OSError:
+                print("Unable to remove file (%s) for episode: %s" % (episode_path, episode["title"],))
+            else:
+                episodes[i]["downloaded"] = False
+    print("done.")
+
     overwrite_config(feed)
 
 def pretty_print_feeds(feeds):
@@ -411,3 +450,23 @@ def main():
             exit(0)
     if arguments['rename']:
         rename(arguments['<shortname>'], arguments['<newname>'])
+
+    if arguments['prune']:
+        if arguments['--maxage-days']:
+            maxage = int(arguments['--maxage-days'])
+        else:
+            maxage = CONFIGURATION.get('maxage-days', 0)
+
+        if arguments['<shortname>']:
+            feed = find_feed(arguments['<shortname>'])
+            if feed:
+                print_green('pruning {}'.format(feed['title']))
+                prune(feed, maxage)
+                exit(0)
+            else:
+                print_err("feed {} not found".format(arguments['<shortname>']))
+                exit(-1)
+        else:
+            for feed in available_feeds():
+                print_green('pruning {}'.format(feed['title']))
+                prune(feed, maxage)
